@@ -1,0 +1,347 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\CampaignTarget;
+use App\Models\ConnectedAccount;
+use App\Models\MediaFile;
+use App\Models\MetaCredential;
+use App\Models\ProjectCampaign;
+use App\Models\PublishLog;
+use App\Models\Schedule;
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
+
+class MetaSchedulerTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $admin = User::create([
+            'name' => 'Admin Scheduler',
+            'email' => 'admin@scheduler.test',
+            'password' => bcrypt('password'),
+            'role' => 'admin',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($admin);
+    }
+
+    public function test_meta_integration_page_is_accessible(): void
+    {
+        $response = $this->get(route('meta.index'));
+        $response->assertStatus(200);
+        $response->assertSee('Integrasi Meta API');
+        $response->assertSee('Koneksi');
+    }
+
+    public function test_left_sidebar_navigation_rendered_consistently(): void
+    {
+        $response = $this->get(route('projects.index'));
+        $response->assertStatus(200);
+        $response->assertSee('Meta Scheduler');
+        $response->assertSee('Menu Utama');
+        $response->assertSee('Project Campaigns');
+        $response->assertSee('Antrean Posting');
+        $response->assertSee('Integrasi Meta API');
+        $response->assertSee('Manajemen User');
+        $response->assertSee('Profil Saya');
+    }
+
+    public function test_create_project_page_is_accessible_and_rendered_properly(): void
+    {
+        $response = $this->get(route('projects.create'));
+        $response->assertStatus(200);
+        $response->assertSee('Buat Campaign Baru');
+        $response->assertSee('Informasi Campaign');
+        $response->assertSee('Jadwal dan Waktu Tayang');
+        $response->assertSee('Target Akun Meta');
+        $response->assertSee('Materi Media Pool');
+    }
+
+    public function test_meta_api_connected_banner_contrast(): void
+    {
+        $cred = MetaCredential::getActive();
+        $cred->update([
+            'user_access_token' => 'test_token',
+            'token_status' => 'valid',
+            'token_expires_at' => Carbon::now()->addDays(30),
+        ]);
+
+        $response = $this->get(route('meta.index'));
+        $response->assertStatus(200);
+        $response->assertSee('Meta API Terhubung & Siap Digunakan', false);
+        $response->assertSee('text-emerald-950');
+    }
+
+    public function test_saving_meta_credentials_encrypts_secret(): void
+    {
+        $response = $this->post(route('meta.updateCredentials'), [
+            'app_id' => '1234567890',
+            'app_secret' => 'super_secret_app_key_123',
+            'graph_version' => 'v22.0',
+            'webhook_verify_token' => 'my_verify_token',
+        ]);
+
+        $response->assertRedirect(route('meta.index'));
+
+        $cred = MetaCredential::first();
+        $this->assertNotNull($cred);
+        $this->assertEquals('1234567890', $cred->app_id);
+        $this->assertEquals('super_secret_app_key_123', $cred->app_secret);
+        $this->assertEquals('v22.0', $cred->graph_version);
+
+        // Pastikan di database tersimpan dalam bentuk encrypted (bukan raw plaintext)
+        $rawSecret = \DB::table('meta_credentials')->where('id', $cred->id)->value('app_secret');
+        $this->assertNotEquals('super_secret_app_key_123', $rawSecret);
+    }
+
+    public function test_project_campaign_creation_with_multi_target_and_platform_control(): void
+    {
+        // 1. Setup 2 Connected Accounts
+        $acc1 = ConnectedAccount::create([
+            'page_id' => 'page_111',
+            'page_name' => 'Sevencols Apparel',
+            'ig_user_id' => 'ig_111',
+            'ig_username' => 'sevencols',
+            'page_access_token' => 'token_111',
+            'is_active' => true,
+        ]);
+
+        $acc2 = ConnectedAccount::create([
+            'page_id' => 'page_222',
+            'page_name' => 'Arema Style',
+            'ig_user_id' => 'ig_222',
+            'ig_username' => 'aremastyle',
+            'page_access_token' => 'token_222',
+            'is_active' => true,
+        ]);
+
+        Storage::fake('public');
+
+        // Buat 2 dummy file gambar dengan dimensi berbeda agar hash berbeda
+        $file1 = UploadedFile::fake()->image('post1.jpg', 100, 100);
+        $file2 = UploadedFile::fake()->image('post2.jpg', 200, 200);
+
+        $payload = [
+            'name' => 'Promo Akhir Pekan',
+            'content_type' => 'story',
+            'caption' => 'Promo Spesial Weekend!',
+            'target_time' => '08:00',
+            'repeat_type' => 'continuous',
+            'exclude_days' => [0],
+            'media_files' => [$file1, $file2],
+            'targets' => [
+                [
+                    'account_id' => $acc1->id,
+                    'platform_target' => 'both', // Target 1 ke Both
+                ],
+                [
+                    'account_id' => $acc2->id,
+                    'platform_target' => 'instagram_only', // Target 2 ke Instagram saja
+                ],
+            ],
+        ];
+
+        $response = $this->post(route('projects.store'), $payload);
+        $response->assertStatus(302);
+
+        $project = ProjectCampaign::first();
+        $this->assertNotNull($project);
+        $this->assertEquals('Promo Akhir Pekan', $project->name);
+        $this->assertEquals('story', $project->content_type);
+        $this->assertEquals('continuous', $project->repeat_type);
+
+        // Verifikasi Pivot Targets (Section 2.1)
+        $targets = $project->targets;
+        $this->assertCount(2, $targets);
+
+        $target1 = $targets->where('connected_account_id', $acc1->id)->first();
+        $this->assertNotNull($target1);
+        $this->assertEquals('both', $target1->platform_target);
+        $this->assertTrue($target1->targetsFacebook());
+        $this->assertTrue($target1->targetsInstagram());
+
+        $target2 = $targets->where('connected_account_id', $acc2->id)->first();
+        $this->assertNotNull($target2);
+        $this->assertEquals('instagram_only', $target2->platform_target);
+        $this->assertFalse($target2->targetsFacebook());
+        $this->assertTrue($target2->targetsInstagram());
+
+        // Verifikasi Media Pool
+        $this->assertCount(2, $project->mediaFiles);
+
+        // Verifikasi Rolling Buffer 29 hari diinisialisasi
+        $schedulesCount = Schedule::where('project_campaign_id', $project->id)->count();
+        $this->assertGreaterThan(20, $schedulesCount);
+    }
+
+    public function test_sha256_media_deduplication(): void
+    {
+        $acc = ConnectedAccount::create([
+            'page_id' => 'page_dedup',
+            'page_name' => 'Dedup Test Page',
+            'page_access_token' => 'token_dedup',
+            'is_active' => true,
+        ]);
+
+        Storage::fake('public');
+
+        // Buat 2 file dengan dimensi identik (konten & hash sama persis)
+        $file1 = UploadedFile::fake()->image('duplicate1.jpg', 150, 150);
+        $file2 = UploadedFile::fake()->image('duplicate2.jpg', 150, 150);
+
+        $payload = [
+            'name' => 'Campaign Deduplikasi',
+            'content_type' => 'post',
+            'target_time' => '12:00',
+            'repeat_type' => 'continuous',
+            'media_files' => [$file1, $file2],
+            'targets' => [
+                ['account_id' => $acc->id, 'platform_target' => 'both'],
+            ],
+        ];
+
+        $this->post(route('projects.store'), $payload);
+
+        // Di tabel media_files hanya tersimpan 1 baris karena hash sama
+        $this->assertEquals(1, MediaFile::count());
+    }
+
+    public function test_once_repeat_mode_rejects_time_less_than_30_minutes(): void
+    {
+        $acc = ConnectedAccount::create([
+            'page_id' => 'page_333',
+            'page_name' => 'Toko Tes',
+            'page_access_token' => 'token_333',
+            'is_active' => true,
+        ]);
+
+        Storage::fake('public');
+        $file = UploadedFile::fake()->image('once.jpg');
+
+        // Waktu hanya +5 menit dari sekarang (harus ditolak)
+        $tooSoon = Carbon::now()->addMinutes(5)->format('H:i');
+
+        $payload = [
+            'name' => 'Flash Sale Kilat',
+            'content_type' => 'post',
+            'target_time' => $tooSoon,
+            'repeat_type' => 'once',
+            'start_date' => Carbon::today()->format('Y-m-d'),
+            'media_files' => [$file],
+            'targets' => [
+                ['account_id' => $acc->id, 'platform_target' => 'both'],
+            ],
+        ];
+
+        $response = $this->post(route('projects.store'), $payload);
+        $response->assertSessionHas('error');
+        $this->assertEquals(0, ProjectCampaign::count());
+    }
+
+    public function test_soft_deactivation_badge_detection(): void
+    {
+        $accActive = ConnectedAccount::create([
+            'page_id' => 'page_active',
+            'page_name' => 'Akun Masih Ada',
+            'page_access_token' => 'token_act',
+            'is_active' => true,
+        ]);
+
+        $accInactive = ConnectedAccount::create([
+            'page_id' => 'page_deleted',
+            'page_name' => 'Akun Terhapus di Meta',
+            'page_access_token' => 'token_inact',
+            'is_active' => false, // Soft-deactivated
+        ]);
+
+        $project = ProjectCampaign::create([
+            'name' => 'Campaign Testing Warning',
+            'content_type' => 'story',
+            'target_time' => '09:00',
+            'repeat_type' => 'continuous',
+            'status' => 'active',
+        ]);
+
+        CampaignTarget::create([
+            'project_campaign_id' => $project->id,
+            'connected_account_id' => $accActive->id,
+            'platform_target' => 'both',
+        ]);
+
+        CampaignTarget::create([
+            'project_campaign_id' => $project->id,
+            'connected_account_id' => $accInactive->id,
+            'platform_target' => 'both',
+        ]);
+
+        // Cek bahwa project mendeteksi adanya aset nonaktif
+        $this->assertTrue($project->hasInactiveAccount());
+    }
+
+    public function test_publish_logs_recorded_per_target_per_platform(): void
+    {
+        $acc = ConnectedAccount::create([
+            'page_id' => 'page_555',
+            'page_name' => 'Test Page',
+            'ig_user_id' => 'ig_555',
+            'ig_username' => 'testig',
+            'page_access_token' => 'token_555',
+            'is_active' => true,
+        ]);
+
+        $project = ProjectCampaign::create([
+            'name' => 'Test Log Campaign',
+            'content_type' => 'story',
+            'target_time' => '10:00',
+            'repeat_type' => 'continuous',
+            'status' => 'active',
+        ]);
+
+        $schedule = Schedule::create([
+            'project_campaign_id' => $project->id,
+            'item_code' => 'test_item_123',
+            'media_path' => '/storage/uploads/test.jpg',
+            'target_date' => Carbon::today(),
+            'target_time' => '10:00',
+            'status' => 'completed',
+        ]);
+
+        // Catat log Instagram
+        PublishLog::create([
+            'schedule_id' => $schedule->id,
+            'project_campaign_id' => $project->id,
+            'connected_account_id' => $acc->id,
+            'platform' => 'instagram',
+            'content_type' => 'story',
+            'action_status' => 'success',
+            'media_id' => '17999888777',
+            'executed_at' => Carbon::now(),
+        ]);
+
+        // Catat log Facebook
+        PublishLog::create([
+            'schedule_id' => $schedule->id,
+            'project_campaign_id' => $project->id,
+            'connected_account_id' => $acc->id,
+            'platform' => 'facebook',
+            'content_type' => 'story',
+            'action_status' => 'success',
+            'media_id' => '999888777666',
+            'executed_at' => Carbon::now(),
+        ]);
+
+        $this->assertEquals(2, $schedule->publishLogs()->count());
+        $this->assertEquals(1, $schedule->publishLogs()->where('platform', 'instagram')->count());
+        $this->assertEquals(1, $schedule->publishLogs()->where('platform', 'facebook')->count());
+    }
+}

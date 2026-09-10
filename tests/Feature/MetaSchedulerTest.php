@@ -344,4 +344,168 @@ class MetaSchedulerTest extends TestCase
         $this->assertEquals(1, $schedule->publishLogs()->where('platform', 'instagram')->count());
         $this->assertEquals(1, $schedule->publishLogs()->where('platform', 'facebook')->count());
     }
+
+    public function test_can_add_schedule_manually_to_project(): void
+    {
+        $project = ProjectCampaign::create([
+            'name' => 'Project Manual Schedule',
+            'content_type' => 'post',
+            'target_time' => '14:00',
+            'repeat_type' => 'continuous',
+            'status' => 'active',
+        ]);
+
+        $media = MediaFile::create([
+            'original_name' => 'manual.jpg',
+            'file_path' => '/storage/uploads/manual.jpg',
+            'file_hash' => 'dummyhash123',
+            'mime_type' => 'image/jpeg',
+            'file_size' => 1024,
+            'media_type' => 'image',
+        ]);
+        $project->mediaFiles()->attach($media->id);
+
+        $response = $this->postJson(route('projects.addSchedule', $project->id), [
+            'target_date' => Carbon::tomorrow()->format('Y-m-d'),
+            'target_time' => '15:30',
+            'media_file_id' => $media->id,
+            'notes' => 'Catatan jadwal manual',
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+
+        $schedule = Schedule::where('project_campaign_id', $project->id)->first();
+        $this->assertNotNull($schedule);
+        $this->assertEquals(Carbon::tomorrow()->format('Y-m-d'), $schedule->target_date->format('Y-m-d'));
+        $this->assertEquals('15:30', $schedule->target_time);
+        $this->assertEquals('pending', $schedule->status);
+        $this->assertEquals('Catatan jadwal manual', $schedule->notes);
+    }
+
+    public function test_can_delete_schedule_from_project(): void
+    {
+        $project = ProjectCampaign::create([
+            'name' => 'Project Delete Schedule',
+            'content_type' => 'post',
+            'target_time' => '10:00',
+            'repeat_type' => 'continuous',
+            'status' => 'active',
+        ]);
+
+        $schedule = Schedule::create([
+            'project_campaign_id' => $project->id,
+            'item_code' => 'sch_to_delete',
+            'media_path' => '/storage/uploads/test.jpg',
+            'target_date' => Carbon::tomorrow()->format('Y-m-d'),
+            'target_time' => '10:00',
+            'status' => 'pending',
+        ]);
+
+        $response = $this->deleteJson(route('schedules.destroy', $schedule->id));
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+
+        $this->assertDatabaseMissing('schedules', [
+            'id' => $schedule->id,
+        ]);
+    }
+
+    public function test_updating_project_adjusts_schedules_on_end_date_and_exclude_days(): void
+    {
+        $acc = ConnectedAccount::create([
+            'page_id' => '123456',
+            'page_name' => 'Page Test Sync',
+            'is_active' => true,
+        ]);
+
+        $project = ProjectCampaign::create([
+            'name' => 'Project Date Sync Test',
+            'content_type' => 'post',
+            'target_time' => '09:00',
+            'repeat_type' => 'until_date',
+            'start_date' => Carbon::today(),
+            'end_date' => Carbon::today()->addDays(10),
+            'status' => 'active',
+        ]);
+
+        CampaignTarget::create([
+            'project_campaign_id' => $project->id,
+            'connected_account_id' => $acc->id,
+            'platform_target' => 'both',
+        ]);
+
+        // Buat jadwal pending di luar batas baru (hari ke-15)
+        $outsideSchedule = Schedule::create([
+            'project_campaign_id' => $project->id,
+            'item_code' => 'outside_sch',
+            'media_path' => '/storage/uploads/test.jpg',
+            'target_date' => Carbon::today()->addDays(15)->format('Y-m-d'),
+            'target_time' => '09:00',
+            'status' => 'pending',
+        ]);
+
+        // Buat jadwal pending di dalam batas baru (hari ke-3)
+        $insideSchedule = Schedule::create([
+            'project_campaign_id' => $project->id,
+            'item_code' => 'inside_sch',
+            'media_path' => '/storage/uploads/test.jpg',
+            'target_date' => Carbon::today()->addDays(3)->format('Y-m-d'),
+            'target_time' => '09:00',
+            'status' => 'pending',
+        ]);
+
+        // Update project: perpendek end_date ke hari ke-5, dan ubah jam ke 11:30
+        $newEndDate = Carbon::today()->addDays(5)->format('Y-m-d');
+        $response = $this->put(route('projects.update', $project->id), [
+            'name' => 'Project Date Sync Test Updated',
+            'content_type' => 'post',
+            'target_time' => '11:30',
+            'repeat_type' => 'until_date',
+            'start_date' => Carbon::today()->format('Y-m-d'),
+            'end_date' => $newEndDate,
+            'targets' => [
+                ['account_id' => $acc->id, 'platform_target' => 'both'],
+            ],
+        ]);
+
+        $response->assertSessionHas('success');
+
+        // Jadwal hari ke-15 harus terhapus karena melebihi end_date baru
+        $this->assertDatabaseMissing('schedules', ['id' => $outsideSchedule->id]);
+
+        // Jadwal hari ke-3 tetap ada dan jamnya terupdate ke 11:30
+        $this->assertDatabaseHas('schedules', [
+            'id' => $insideSchedule->id,
+            'target_time' => '11:30',
+        ]);
+    }
+
+    public function test_can_sync_project_schedule_buffer(): void
+    {
+        $project = ProjectCampaign::create([
+            'name' => 'Project Buffer Test',
+            'content_type' => 'post',
+            'target_time' => '10:00',
+            'repeat_type' => 'continuous',
+            'status' => 'active',
+        ]);
+
+        $media = MediaFile::create([
+            'original_name' => 'buffer_test.jpg',
+            'file_path' => '/storage/uploads/buffer_test.jpg',
+            'file_hash' => 'bufferdummyhash',
+            'mime_type' => 'image/jpeg',
+            'file_size' => 1024,
+            'media_type' => 'image',
+        ]);
+        $project->mediaFiles()->attach($media->id);
+
+        $response = $this->postJson(route('projects.syncBuffer', $project->id));
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+
+        // Buffer harus terisi
+        $this->assertGreaterThan(0, $project->schedules()->where('status', 'pending')->count());
+    }
 }

@@ -228,12 +228,10 @@ class ProjectController extends Controller
                 $project->mediaFiles()->attach($newMediaIds);
             }
 
-            // Update waktu pada antrean jadwal pending
-            Schedule::where('project_campaign_id', $project->id)
-                ->where('status', 'pending')
-                ->update(['target_time' => $project->target_time]);
+            // Sinkronkan jadwal otomatis (sesuaikan batas tanggal, hari libur, jam tayang, & buffer)
+            $syncResult = $this->syncProjectSchedules($project);
 
-            $msg = "Project '{$project->name}' berhasil diperbarui!";
+            $msg = "Project '{$project->name}' berhasil diperbarui! Antrean jadwal telah disinkronkan (-{$syncResult['deleted']} dihapus, +{$syncResult['added']} ditambahkan).";
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
@@ -368,42 +366,213 @@ class ProjectController extends Controller
         return $uploadedIds;
     }
 
-    protected function seedInitialBuffer(ProjectCampaign $project): void
+    public function addSchedule(Request $request, $id)
+    {
+        try {
+            $project = ProjectCampaign::with('mediaFiles')->findOrFail($id);
+
+            $request->validate([
+                'target_date' => 'required|date',
+                'target_time' => 'required|string',
+                'media_file_id' => 'nullable|exists:media_files,id',
+                'notes' => 'nullable|string|max:255',
+            ]);
+
+            $mediaFiles = $project->mediaFiles;
+            if ($mediaFiles->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Project belum memiliki materi di Media Pool. Silakan tambahkan media terlebih dahulu.',
+                ], 422);
+            }
+
+            $targetDate = Carbon::parse($request->target_date)->format('Y-m-d');
+            $targetTime = trim($request->target_time);
+
+            $mediaFile = null;
+            if ($request->media_file_id) {
+                $mediaFile = $mediaFiles->where('id', $request->media_file_id)->first();
+            }
+            if (!$mediaFile) {
+                $mediaFile = $mediaFiles->first();
+            }
+
+            $itemCode = 'proj_' . $project->id . '_' . $targetDate . '_' . rand(100, 999);
+
+            $schedule = Schedule::create([
+                'project_campaign_id' => $project->id,
+                'item_code' => $itemCode,
+                'media_file_id' => $mediaFile->id,
+                'media_path' => $mediaFile->file_path,
+                'media_paths' => [$mediaFile->file_path],
+                'target_date' => $targetDate,
+                'target_time' => $targetTime,
+                'status' => 'pending',
+                'notes' => $request->notes ? trim($request->notes) : "Jadwal Manual Project '{$project->name}'",
+            ]);
+
+            $dateFormatted = Carbon::parse($targetDate)->translatedFormat('d M Y');
+            $msg = "Jadwal tayang tanggal {$dateFormatted} jam {$targetTime} WIB berhasil ditambahkan ke antrean!";
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $msg,
+                    'schedule' => $schedule,
+                ]);
+            }
+
+            return redirect()->back()->with('success', $msg);
+
+        } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal menambah jadwal: ' . $e->getMessage(),
+                ], 500);
+            }
+            return redirect()->back()->with('error', 'Gagal menambah jadwal: ' . $e->getMessage());
+        }
+    }
+
+    public function syncBuffer(Request $request, $id)
+    {
+        try {
+            $project = ProjectCampaign::findOrFail($id);
+            $syncResult = $this->syncProjectSchedules($project);
+
+            $msg = "Antrean jadwal berhasil disinkronkan (-{$syncResult['deleted']} dihapus, +{$syncResult['added']} ditambahkan).";
+
+            return response()->json([
+                'success' => true,
+                'message' => $msg,
+                'deleted' => $syncResult['deleted'],
+                'added' => $syncResult['added'],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menyinkronkan jadwal: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function syncProjectSchedules(ProjectCampaign $project): array
+    {
+        $deletedCount = 0;
+        $addedCount = 0;
+
+        // MODE 1: ONCE (Hanya 1x Post)
+        if ($project->repeat_type === 'once') {
+            $targetDate = $project->start_date ? Carbon::parse($project->start_date)->format('Y-m-d') : Carbon::today()->format('Y-m-d');
+
+            // 1. Hapus jadwal pending yang tanggalnya BUKAN targetDate
+            $deletedCount += Schedule::where('project_campaign_id', $project->id)
+                ->where('status', 'pending')
+                ->where('target_date', '!=', $targetDate)
+                ->delete();
+
+            // 2. Cek jadwal pending pada targetDate
+            $existing = Schedule::where('project_campaign_id', $project->id)
+                ->where('status', 'pending')
+                ->where('target_date', $targetDate)
+                ->first();
+
+            if ($existing) {
+                $existing->update([
+                    'target_time' => $project->target_time,
+                ]);
+            } else {
+                $this->seedOnceSchedule($project, $targetDate);
+                $addedCount++;
+            }
+
+            return ['deleted' => $deletedCount, 'added' => $addedCount];
+        }
+
+        // MODE 2 & 3: CONTINUOUS & UNTIL_DATE
+        // 1. Update target_time untuk seluruh jadwal pending
+        Schedule::where('project_campaign_id', $project->id)
+            ->where('status', 'pending')
+            ->update(['target_time' => $project->target_time]);
+
+        // 2. Hapus jadwal pending sebelum start_date (jika start_date dimajukan ke masa depan)
+        if ($project->start_date) {
+            $startDateStr = $project->start_date->format('Y-m-d');
+            $deletedCount += Schedule::where('project_campaign_id', $project->id)
+                ->where('status', 'pending')
+                ->where('target_date', '<', $startDateStr)
+                ->delete();
+        }
+
+        // 3. Jika mode until_date dan ada end_date, hapus jadwal pending setelah end_date
+        if ($project->repeat_type === 'until_date' && $project->end_date) {
+            $endDateStr = $project->end_date->format('Y-m-d');
+            $deletedCount += Schedule::where('project_campaign_id', $project->id)
+                ->where('status', 'pending')
+                ->where('target_date', '>', $endDateStr)
+                ->delete();
+        }
+
+        // 4. Hapus jadwal pending yang jatuh pada hari yang dikecualikan (exclude_days)
+        $excludeDays = $project->exclude_days ?? [];
+        if (!empty($excludeDays)) {
+            $pendingSchedules = Schedule::where('project_campaign_id', $project->id)
+                ->where('status', 'pending')
+                ->get();
+
+            foreach ($pendingSchedules as $ps) {
+                if ($ps->target_date && in_array($ps->target_date->dayOfWeek, $excludeDays)) {
+                    $ps->delete();
+                    $deletedCount++;
+                }
+            }
+        }
+
+        // 5. Isi kembali tanggal yang kosong / perluas buffer
+        if ($project->status === 'active') {
+            $addedCount = (new MaintainScheduleBufferCommand())->maintainProjectBuffer($project);
+        }
+
+        return ['deleted' => $deletedCount, 'added' => $addedCount];
+    }
+
+    public function seedOnceSchedule(ProjectCampaign $project, string $dateStr): void
     {
         $mediaFiles = $project->mediaFiles;
         if ($mediaFiles->isEmpty()) return;
 
-        $excludeDays = $project->exclude_days ?? [];
         $imagesPerPost = max(1, $project->images_per_post ?: 1);
-        $mediaIndex = 0;
+        $paths = [];
+        $primaryMedia = null;
 
-        // MODE 1: ONCE (Hanya 1x Post)
+        for ($imgIdx = 0; $imgIdx < $imagesPerPost; $imgIdx++) {
+            $picked = $mediaFiles[$imgIdx % $mediaFiles->count()];
+            if ($imgIdx === 0) $primaryMedia = $picked;
+            $paths[] = $picked->file_path;
+        }
+
+        $primaryPath = $paths[0] ?? '';
+        $itemCode = 'proj_' . $project->id . '_' . $dateStr . '_' . rand(10, 99);
+
+        Schedule::create([
+            'project_campaign_id' => $project->id,
+            'item_code' => $itemCode,
+            'media_file_id' => $primaryMedia?->id,
+            'media_path' => $primaryPath,
+            'media_paths' => $paths,
+            'target_date' => $dateStr,
+            'target_time' => $project->target_time,
+            'status' => 'pending',
+            'notes' => "Single Post Project '{$project->name}'",
+        ]);
+    }
+
+    protected function seedInitialBuffer(ProjectCampaign $project): void
+    {
         if ($project->repeat_type === 'once') {
             $targetDate = $project->start_date ? Carbon::parse($project->start_date) : Carbon::today();
-            $dateStr = $targetDate->format('Y-m-d');
-
-            $paths = [];
-            $primaryMedia = null;
-            for ($imgIdx = 0; $imgIdx < $imagesPerPost; $imgIdx++) {
-                $picked = $mediaFiles[$imgIdx % $mediaFiles->count()];
-                if ($imgIdx === 0) $primaryMedia = $picked;
-                $paths[] = $picked->file_path;
-            }
-
-            $primaryPath = $paths[0] ?? '';
-            $itemCode = 'proj_' . $project->id . '_' . $dateStr . '_' . rand(10, 99);
-
-            Schedule::create([
-                'project_campaign_id' => $project->id,
-                'item_code' => $itemCode,
-                'media_file_id' => $primaryMedia?->id,
-                'media_path' => $primaryPath,
-                'media_paths' => $paths,
-                'target_date' => $dateStr,
-                'target_time' => $project->target_time,
-                'status' => 'pending',
-                'notes' => "Single Post Project '{$project->name}'",
-            ]);
+            $this->seedOnceSchedule($project, $targetDate->format('Y-m-d'));
             return;
         }
 

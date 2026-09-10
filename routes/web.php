@@ -36,6 +36,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('projects', ProjectController::class);
     Route::post('projects/{id}/toggle-status', [ProjectController::class, 'toggleStatus'])->name('projects.toggleStatus');
     Route::post('projects/{id}/add-media', [ProjectController::class, 'addMedia'])->name('projects.addMedia');
+    Route::post('projects/{id}/schedules', [ProjectController::class, 'addSchedule'])->name('projects.addSchedule');
+    Route::post('projects/{id}/schedules/sync', [ProjectController::class, 'syncBuffer'])->name('projects.syncBuffer');
 
     // Schedules & Monitoring Routes
     Route::get('schedules', [ScheduleController::class, 'index'])->name('schedules.index');

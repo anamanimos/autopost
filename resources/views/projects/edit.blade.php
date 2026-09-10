@@ -225,6 +225,17 @@
                 </div>
             </div>
 
+            <!-- Notice Sinkronisasi Jadwal Otomatis -->
+            <div class="p-4 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 text-xs text-indigo-900 dark:text-indigo-200 flex items-start space-x-3">
+                <i class="fa-solid fa-arrows-rotate text-indigo-600 dark:text-indigo-400 text-base mt-0.5 flex-shrink-0"></i>
+                <div class="space-y-1">
+                    <strong class="font-bold block">Penyelarasan Jadwal Otomatis:</strong>
+                    <p class="text-[11px] text-indigo-800/90 dark:text-indigo-300">
+                        Jika Anda mengubah tanggal mulai, tanggal berakhir, jam tayang, atau hari libur: antrean jadwal pending yang belum tayang akan otomatis diselaraskan (jadwal di luar rentang baru atau pada hari libur akan dihapus, dan tanggal baru yang belum ada akan otomatis dibuat).
+                    </p>
+                </div>
+            </div>
+
             <!-- Existing Media Pool Preview -->
             <div class="space-y-3">
                 <div class="flex items-center justify-between">

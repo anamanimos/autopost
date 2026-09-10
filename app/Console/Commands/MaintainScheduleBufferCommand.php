@@ -110,10 +110,9 @@ class MaintainScheduleBufferCommand extends Command
                 }
             }
 
-            // Cek apakah jadwal sudah ada
+            // Cek apakah jadwal sudah ada pada tanggal ini
             $exists = Schedule::where('project_campaign_id', $project->id)
                 ->where('target_date', $dateStr)
-                ->where('target_time', $project->target_time)
                 ->exists();
 
             if ($exists) {

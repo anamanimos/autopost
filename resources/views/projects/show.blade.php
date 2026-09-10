@@ -203,6 +203,22 @@
             </h2>
 
             <div class="flex flex-wrap items-center gap-2">
+                <!-- Tambah Jadwal Manual Button -->
+                <button onclick="openAddScheduleModal()" 
+                        class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition flex items-center space-x-1.5"
+                        title="Tambahkan jadwal tanggal tayang baru secara manual untuk campaign ini">
+                    <i class="fa-solid fa-plus text-xs"></i>
+                    <span>Tambah Jadwal</span>
+                </button>
+
+                <!-- Sinkronkan Antrean Buffer Button -->
+                <button onclick="triggerSyncScheduleBuffer({{ $project->id }})" 
+                        class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 dark:border-gray-700 transition flex items-center space-x-1.5 shadow-sm"
+                        title="Sinkronkan antrean buffer: bersihkan tanggal di luar batas dan isi tanggal kosong">
+                    <i class="fa-solid fa-arrows-rotate text-xs text-indigo-600 dark:text-indigo-400"></i>
+                    <span>Sinkronkan Antrean</span>
+                </button>
+
                 @php
                     $firstPending = $project->schedules->where('status', 'pending')->first();
                 @endphp
@@ -211,7 +227,7 @@
                             class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-sm shadow-indigo-600/20 transition flex items-center space-x-1.5"
                             title="Publikasikan jadwal pending terdekat dengan visual progress">
                         <i class="fa-solid fa-bolt text-amber-300 text-xs"></i>
-                        <span>Terbitkan Jadwal Terdekat</span>
+                        <span>Terbitkan Terdekat</span>
                     </button>
                 @endif
 
@@ -237,16 +253,16 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200/80 dark:divide-gray-800/60">
-                    @foreach($project->schedules->take(20) as $sch)
+                    @forelse($project->schedules as $sch)
                         <tr class="hover:bg-slate-50/80 dark:hover:bg-gray-900/40 transition">
                             <td class="py-3 px-4">
                                 <div class="w-10 h-10 rounded-lg bg-slate-100 dark:bg-gray-900 border border-slate-200 dark:border-gray-800 overflow-hidden flex-shrink-0 cursor-pointer"
-                                     onclick="openLightboxDirect('{{ $sch->media_url }}', false, 'Jadwal {{ $sch->target_date->format('d M Y') }}')">
+                                     onclick="openLightboxDirect('{{ $sch->media_url }}', false, 'Jadwal {{ $sch->target_date ? $sch->target_date->format('d M Y') : '' }}')">
                                     <img src="{{ $sch->media_url }}" class="w-full h-full object-cover">
                                 </div>
                             </td>
                             <td class="py-3 px-4">
-                                <span class="font-bold text-slate-900 dark:text-white block">{{ $sch->target_date->format('d M Y') }}</span>
+                                <span class="font-bold text-slate-900 dark:text-white block">{{ $sch->target_date ? $sch->target_date->format('d M Y') : '-' }}</span>
                                 <span class="text-[11px] text-slate-500 dark:text-gray-400">{{ $sch->target_time }} WIB</span>
                             </td>
                             <td class="py-3 px-4">
@@ -313,28 +329,42 @@
                                             title="Ubah Status Jadwal Tanggal Ini">
                                         <i class="fa-solid fa-pen-to-square text-[10px]"></i>
                                     </button>
+
+                                    <!-- Tombol Hapus Jadwal -->
+                                    <button onclick="deleteSchedule({{ $sch->id }}, '{{ $sch->target_date ? $sch->target_date->translatedFormat('d M Y') : '' }}')"
+                                            class="px-2 py-1 text-[11px] font-semibold rounded-md bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-400 dark:border-rose-800/80 transition" 
+                                            title="Hapus Jadwal Tanggal Ini Dari Antrean">
+                                        <i class="fa-solid fa-trash text-[10px]"></i>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
-                    @endforeach
+                    @empty
+                        <tr>
+                            <td colspan="5" class="py-8 text-center text-slate-400 dark:text-gray-500">
+                                <i class="fa-solid fa-calendar-xmark text-xl mb-1 block opacity-60"></i>
+                                <span>Belum ada jadwal yang terdaftar untuk campaign ini. Klik <strong>Tambah Jadwal</strong> atau <strong>Sinkronkan Antrean</strong> di atas.</span>
+                            </td>
+                        </tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>
 
         <!-- ========== MOBILE CARD VIEW FOR SCHEDULES (visible on mobile < md) ========== -->
         <div class="block md:hidden divide-y divide-slate-200/80 dark:divide-gray-800/60">
-            @foreach($project->schedules->take(20) as $sch)
+            @forelse($project->schedules as $sch)
                 <div class="py-3.5 space-y-3">
                     <div class="flex items-start justify-between gap-3">
                         <div class="flex items-start space-x-3 min-w-0">
                             <div class="w-12 h-12 rounded-xl bg-slate-100 dark:bg-gray-900 border border-slate-200 dark:border-gray-800 overflow-hidden flex-shrink-0 cursor-pointer shadow-sm"
-                                 onclick="openLightboxDirect('{{ $sch->media_url }}', false, 'Jadwal {{ $sch->target_date->format('d M Y') }}')">
+                                 onclick="openLightboxDirect('{{ $sch->media_url }}', false, 'Jadwal {{ $sch->target_date ? $sch->target_date->format('d M Y') : '' }}')">
                                 <img src="{{ $sch->media_url }}" class="w-full h-full object-cover">
                             </div>
                             <div class="min-w-0">
                                 <div class="font-bold text-xs text-slate-900 dark:text-white flex items-center space-x-1.5">
                                     <i class="fa-regular fa-calendar text-indigo-500 text-[11px]"></i>
-                                    <span>{{ $sch->target_date->format('d M Y') }}</span>
+                                    <span>{{ $sch->target_date ? $sch->target_date->format('d M Y') : '-' }}</span>
                                 </div>
                                 <div class="text-[11px] text-slate-500 dark:text-gray-400 mt-0.5 flex items-center space-x-1">
                                     <i class="fa-regular fa-clock text-indigo-500 text-[10px]"></i>
@@ -406,9 +436,21 @@
                                 title="Ubah Status Jadwal">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </button>
+
+                        <!-- Tombol Hapus Jadwal -->
+                        <button onclick="deleteSchedule({{ $sch->id }}, '{{ $sch->target_date ? $sch->target_date->translatedFormat('d M Y') : '' }}')"
+                                class="p-2 text-xs font-semibold rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-400 dark:border-rose-800/80 transition" 
+                                title="Hapus Jadwal Tanggal Ini">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
                     </div>
                 </div>
-            @endforeach
+            @empty
+                <div class="py-8 text-center text-slate-400 dark:text-gray-500">
+                    <i class="fa-solid fa-calendar-xmark text-xl mb-1 block opacity-60"></i>
+                    <span>Belum ada jadwal yang terdaftar untuk campaign ini.</span>
+                </div>
+            @endforelse
         </div>
     </div>
 
@@ -538,6 +580,81 @@
                 @endforeach
             </div>
         @endif
+    </div>
+
+    <!-- Modal Tambah Jadwal Tayang Manual -->
+    <div id="addScheduleModal" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-slate-950/70 backdrop-blur-sm p-4">
+        <div class="w-full max-w-md card-dark border border-slate-200 dark:border-gray-800 rounded-2xl p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-gray-800 pb-3">
+                <div class="flex items-center space-x-2.5">
+                    <div class="p-2 bg-indigo-50 dark:bg-indigo-950/80 rounded-lg text-indigo-600 dark:text-indigo-400">
+                        <i class="fa-solid fa-calendar-plus text-base"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm text-slate-900 dark:text-white">Tambah Jadwal Tayang Manual</h3>
+                        <p class="text-[11px] text-slate-500 dark:text-gray-400">Campaign: {{ $project->name }}</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeAddScheduleModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <form id="formAddSchedule" onsubmit="submitAddSchedule(event)" class="space-y-4">
+                <!-- Tanggal Tayang -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
+                        Tanggal Tayang <span class="text-rose-500">*</span>
+                    </label>
+                    <input type="date" name="target_date" id="addScheduleTargetDate" required
+                           value="{{ date('Y-m-d') }}"
+                           class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <!-- Jam Tayang -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
+                        Jam Tayang (WIB) <span class="text-rose-500">*</span>
+                    </label>
+                    <input type="time" name="target_time" id="addScheduleTargetTime" required
+                           value="{{ $project->target_time }}"
+                           class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <!-- Pilihan Media -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
+                        Pilihan Materi Media
+                    </label>
+                    <select name="media_file_id" class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500">
+                        <option value="">Otomatis (Pilih dari Media Pool)</option>
+                        @foreach($project->mediaFiles as $media)
+                            <option value="{{ $media->id }}">{{ $media->original_name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Catatan Jadwal -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
+                        Catatan Khusus (Opsional)
+                    </label>
+                    <input type="text" name="notes" placeholder="Contoh: Jadwal tambahan promo khusus"
+                           class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div class="pt-3 flex items-center justify-end space-x-2 border-t border-slate-200 dark:border-gray-800">
+                    <button type="button" onclick="closeAddScheduleModal()" 
+                            class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 rounded-lg text-xs font-semibold">
+                        Batal
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs shadow-md">
+                        Simpan Jadwal
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
 </div>
@@ -738,6 +855,125 @@
         })
         .catch(err => {
             showAlert('error', 'Error', err.message);
+        });
+    }
+
+    function openAddScheduleModal() {
+        document.getElementById('addScheduleModal').classList.remove('hidden');
+    }
+
+    function closeAddScheduleModal() {
+        document.getElementById('addScheduleModal').classList.add('hidden');
+    }
+
+    function submitAddSchedule(e) {
+        e.preventDefault();
+        const form = document.getElementById('formAddSchedule');
+        const formData = new FormData(form);
+
+        showLoading('Menyimpan Jadwal...', 'Menambahkan jadwal ke antrean campaign...');
+        fetch("{{ route('projects.addSchedule', $project->id) }}", {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', 'Berhasil!', data.message);
+                closeAddScheduleModal();
+                setTimeout(() => window.location.reload(), 1200);
+            } else {
+                showAlert('error', 'Gagal', data.message);
+            }
+        })
+        .catch(err => {
+            showAlert('error', 'Error', err.message);
+        });
+    }
+
+    function triggerSyncScheduleBuffer(projectId) {
+        Swal.fire({
+            title: 'Sinkronkan Antrean Jadwal?',
+            text: 'Sistem akan memeriksa seluruh antrean jadwal pending: membersihkan tanggal di luar batas / hari libur baru dan mengisi tanggal kosong sesuai pengaturan campaign.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#4f46e5',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: '<i class="fa-solid fa-arrows-rotate mr-1"></i> Ya, Sinkronkan',
+            cancelButtonText: 'Batal',
+            customClass: {
+                popup: 'swal2-popup-dark',
+                title: 'swal2-title-dark',
+                htmlContainer: 'swal2-html-dark'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                showLoading('Menyinkronkan...', 'Memproses penyelarasan buffer jadwal...');
+                fetch(`/projects/${projectId}/schedules/sync`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert('success', 'Sinkronisasi Selesai', data.message);
+                        setTimeout(() => window.location.reload(), 1200);
+                    } else {
+                        showAlert('error', 'Gagal', data.message);
+                    }
+                })
+                .catch(err => {
+                    showAlert('error', 'Error', err.message);
+                });
+            }
+        });
+    }
+
+    function deleteSchedule(id, dateStr) {
+        Swal.fire({
+            title: 'Hapus Jadwal?',
+            text: `Apakah Anda yakin ingin menghapus jadwal tanggal ${dateStr}? Jadwal ini akan dibatalkan dan dihapus dari antrean.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e11d48',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: '<i class="fa-solid fa-trash mr-1"></i> Ya, Hapus Jadwal',
+            cancelButtonText: 'Batal',
+            customClass: {
+                popup: 'swal2-popup-dark',
+                title: 'swal2-title-dark',
+                htmlContainer: 'swal2-html-dark'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                showLoading('Menghapus...', 'Menghapus jadwal dari antrean...');
+                fetch(`/schedules/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert('success', 'Terhapus', data.message);
+                        setTimeout(() => window.location.reload(), 1000);
+                    } else {
+                        showAlert('error', 'Gagal', data.message);
+                    }
+                })
+                .catch(err => {
+                    showAlert('error', 'Error', err.message);
+                });
+            }
         });
     }
 </script>

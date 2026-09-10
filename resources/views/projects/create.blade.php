@@ -313,6 +313,7 @@
                                     </select>
                                 </div>
                             </div>
+                        </div>
                     @empty
                         <div class="p-4 text-center text-xs text-slate-400">
                             Belum ada akun Meta yang terhubung.
@@ -352,15 +353,21 @@
                     <div id="previewGrid" class="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-52 overflow-y-auto pr-1"></div>
                 </div>
             </div>
+        </div>
 
-            <!-- Form Action Buttons -->
-            <div class="pt-2 flex items-center justify-end space-x-3">
+        <!-- ==================== FOOTER / BOTTOM ACTION BAR ==================== -->
+        <div class="lg:col-span-12 card-dark rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-gray-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center space-x-2.5 text-xs text-slate-500 dark:text-gray-400">
+                <i class="fa-solid fa-circle-check text-indigo-500 text-sm shrink-0"></i>
+                <span>Pastikan seluruh konfigurasi campaign, target akun, dan media pool sudah lengkap sebelum menyimpan.</span>
+            </div>
+            <div class="flex items-center space-x-3 w-full sm:w-auto justify-end">
                 <a href="{{ route('projects.index') }}" 
-                   class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 font-semibold rounded-lg text-xs transition">
+                   class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 font-semibold rounded-lg text-xs transition text-center min-w-[90px]">
                     Batal
                 </a>
                 <button type="submit" 
-                        class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs transition shadow-md flex items-center space-x-2">
+                        class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs transition shadow-md flex items-center justify-center space-x-2 min-w-[170px]">
                     <i class="fa-solid fa-rocket"></i>
                     <span>Simpan & Inisialisasi</span>
                 </button>

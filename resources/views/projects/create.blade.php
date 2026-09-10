@@ -85,7 +85,7 @@
             <i class="fa-solid fa-triangle-exclamation text-amber-500 text-base shrink-0"></i>
             <div>
                 <strong class="block font-semibold">Belum ada akun Meta yang terhubung!</strong>
-                <span>Hubungkan akun terlebih dahulu di halaman <a href="{{ route('meta.index') }}" class="underline font-bold text-amber-900 dark:text-white">Integrasi Meta API</a> sebelum membuat campaign.</span>
+                <span>Hubungkan akun terlebih dahulu di menu <a href="{{ route('settings.index', ['tab' => 'meta']) }}" class="underline font-bold text-amber-900 dark:text-white">Pengaturan (Integrasi Meta)</a> sebelum membuat campaign.</span>
             </div>
         </div>
     @endif

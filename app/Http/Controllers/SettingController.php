@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ConnectedAccount;
 use App\Models\MediaFile;
+use App\Models\MetaCredential;
+use App\Models\TokenActivityLog;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -60,6 +63,12 @@ class SettingController extends Controller
             'meta_graph_version' => config('services.meta.graph_version', 'v22.0'),
         ];
 
+        // Integrasi Meta API Data
+        $credential = MetaCredential::getActive();
+        $accounts = ConnectedAccount::orderBy('page_name')->get();
+        $logs = TokenActivityLog::latest()->take(20)->get();
+        $callbackUrl = route('meta.callback');
+
         return view('settings.index', compact(
             'totalFiles',
             'totalSizeBytes',
@@ -71,7 +80,11 @@ class SettingController extends Controller
             'r2Percentage',
             'localPercentage',
             'r2Config',
-            'systemInfo'
+            'systemInfo',
+            'credential',
+            'accounts',
+            'logs',
+            'callbackUrl'
         ));
     }
 

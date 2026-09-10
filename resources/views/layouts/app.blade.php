@@ -419,22 +419,7 @@
                 </a>
             </div>
 
-            <!-- Group 2: Integrasi -->
-            <div class="space-y-1">
-                <div class="px-3 pb-1 text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-wider">
-                    Integrasi Meta
-                </div>
-
-                <a href="{{ route('meta.index') }}" 
-                   class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition group {{ request()->routeIs('meta.*') ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60' }}">
-                    <div class="w-5 text-center">
-                        <i class="fa-solid fa-sliders text-sm {{ request()->routeIs('meta.*') ? 'text-white' : 'text-slate-400 dark:text-gray-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400' }}"></i>
-                    </div>
-                    <span>Integrasi Meta API</span>
-                </a>
-            </div>
-
-            <!-- Group 3: Administrasi (Admin Only) -->
+            <!-- Group 2: Administrasi (Admin Only) -->
             @if(auth()->user()->isAdmin())
             <div class="space-y-1">
                 <div class="px-3 pb-1 text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-wider">
@@ -507,7 +492,7 @@
                     <!-- Right: Action Buttons (Meta API Status, Theme Toggle, User Profile) -->
                     <div class="flex items-center space-x-2.5">
                         <!-- Meta API Connection Status Indicator -->
-                        <a href="{{ route('meta.index') }}" 
+                        <a href="{{ route('settings.index', ['tab' => 'meta']) }}" 
                            class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg border border-slate-200/90 dark:border-gray-800 bg-white/80 dark:bg-slate-800/60 hover:border-indigo-400 dark:hover:border-indigo-500/60 transition shadow-sm group"
                            title="Integrasi Meta Graph API — Status: Terhubung (Klik untuk Pengaturan)">
                             <span class="relative flex h-2 w-2">
@@ -668,17 +653,19 @@
                     <span class="text-[10px] mt-1 font-medium tracking-tight">Antrean</span>
                 </a>
 
-                <!-- Tab 3: Integrasi Meta API -->
-                <a href="{{ route('meta.index') }}" 
-                   class="flex flex-col items-center justify-center py-1 group transition relative {{ request()->routeIs('meta.*') ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-slate-200' }}">
+                <!-- Tab 3: Pengaturan (Admin Only) -->
+                @if(auth()->user()->isAdmin())
+                <a href="{{ route('settings.index') }}" 
+                   class="flex flex-col items-center justify-center py-1 group transition relative {{ request()->routeIs('settings.*') ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-slate-200' }}">
                     <div class="relative">
-                        <i class="fa-brands fa-meta text-base transition-transform group-active:scale-90"></i>
-                        @if(request()->routeIs('meta.*'))
+                        <i class="fa-solid fa-gear text-base transition-transform group-active:scale-90"></i>
+                        @if(request()->routeIs('settings.*'))
                             <span class="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>
                         @endif
                     </div>
-                    <span class="text-[10px] mt-1 font-medium tracking-tight">Meta API</span>
+                    <span class="text-[10px] mt-1 font-medium tracking-tight">Pengaturan</span>
                 </a>
+                @endif
 
                 <!-- Tab 4: Manajemen User (Admin Only) -->
                 @if(auth()->user()->isAdmin())
@@ -1303,7 +1290,7 @@
                 </div>
                 <p class="text-gray-300 text-[11px] leading-relaxed">${errorMsg}</p>
                 <div class="p-2.5 bg-gray-900/80 rounded-xl border border-gray-800 text-[10px] text-gray-400 font-mono">
-                    Silakan periksa izin Page Access Token & koneksi Instagram Business di menu Integrasi Meta API.
+                    Silakan periksa izin Page Access Token & koneksi Instagram Business di menu Pengaturan (Integrasi Meta).
                 </div>
             `;
             resultCard.classList.remove('hidden');

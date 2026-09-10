@@ -43,10 +43,22 @@ class SettingsTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('settings.index'));
 
         $response->assertStatus(200);
-        $response->assertSee('Pengaturan Sistem & Storage');
-        $response->assertSee('Cloudflare R2');
-        $response->assertSee('Statistik Penyimpanan');
+        $response->assertSee('Pengaturan Sistem');
+        $response->assertSee('Penyimpanan (Storage R2)');
+        $response->assertSee('Integrasi Meta API');
+        $response->assertSee('Cloudflare R2 Storage');
         $response->assertSee('Tes Koneksi R2');
+    }
+
+    public function test_admin_can_access_settings_meta_tab(): void
+    {
+        $response = $this->actingAs($this->admin)->get(route('settings.index', ['tab' => 'meta']));
+
+        $response->assertStatus(200);
+        $response->assertSee('Pengaturan Sistem');
+        $response->assertSee('Integrasi Meta API');
+        $response->assertSee('Otorisasi Akun (Metode Utama)');
+        $response->assertSee('Kredensial Meta App');
     }
 
     public function test_operator_cannot_access_settings_page(): void

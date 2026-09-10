@@ -38,9 +38,12 @@ class MetaSchedulerTest extends TestCase
     public function test_meta_integration_page_is_accessible(): void
     {
         $response = $this->get(route('meta.index'));
-        $response->assertStatus(200);
-        $response->assertSee('Integrasi Meta API');
-        $response->assertSee('Koneksi');
+        $response->assertRedirect(route('settings.index', ['tab' => 'meta']));
+
+        $page = $this->get(route('settings.index', ['tab' => 'meta']));
+        $page->assertStatus(200);
+        $page->assertSee('Integrasi Meta API');
+        $page->assertSee('Koneksi');
     }
 
     public function test_left_sidebar_navigation_rendered_consistently(): void
@@ -49,11 +52,11 @@ class MetaSchedulerTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Meta Scheduler');
         $response->assertSee('Menu Utama');
-        $response->assertSee('Project Campaigns');
+        $response->assertSee('Campaigns');
         $response->assertSee('Antrean Posting');
-        $response->assertSee('Integrasi Meta API');
         $response->assertSee('Manajemen User');
-        $response->assertSee('Profil Saya');
+        $response->assertSee('Pengaturan');
+        $response->assertDontSee('Integrasi Meta API');
     }
 
     public function test_create_project_page_is_accessible_and_rendered_properly(): void
@@ -76,7 +79,7 @@ class MetaSchedulerTest extends TestCase
             'token_expires_at' => Carbon::now()->addDays(30),
         ]);
 
-        $response = $this->get(route('meta.index'));
+        $response = $this->get(route('settings.index', ['tab' => 'meta']));
         $response->assertStatus(200);
         $response->assertSee('Meta API Terhubung & Siap Digunakan', false);
         $response->assertSee('text-emerald-950');
@@ -91,7 +94,7 @@ class MetaSchedulerTest extends TestCase
             'webhook_verify_token' => 'my_verify_token',
         ]);
 
-        $response->assertRedirect(route('meta.index'));
+        $response->assertRedirect(route('settings.index', ['tab' => 'meta']));
 
         $cred = MetaCredential::first();
         $this->assertNotNull($cred);

@@ -15,12 +15,7 @@ class MetaIntegrationController extends Controller
 {
     public function index()
     {
-        $credential = MetaCredential::getActive();
-        $accounts = ConnectedAccount::orderBy('page_name')->get();
-        $logs = TokenActivityLog::latest()->take(20)->get();
-        $callbackUrl = route('meta.callback');
-
-        return view('meta_integration.index', compact('credential', 'accounts', 'logs', 'callbackUrl'));
+        return redirect()->route('settings.index', ['tab' => 'meta']);
     }
 
     public function updateCredentials(Request $request)
@@ -45,7 +40,7 @@ class MetaIntegrationController extends Controller
 
         $credential->update($data);
 
-        return redirect()->route('meta.index')->with('success', 'Kredensial Meta App berhasil disimpan!');
+        return redirect()->route('settings.index', ['tab' => 'meta'])->with('success', 'Kredensial Meta App berhasil disimpan!');
     }
 
     public function saveManualToken(Request $request, MetaGraphService $metaService)
@@ -112,14 +107,14 @@ class MetaIntegrationController extends Controller
         // Auto Sync Accounts
         Artisan::call('meta:sync-accounts');
 
-        return redirect()->route('meta.index')->with('success', 'Token berhasil disimpan! Akun Meta sedang disinkronisasi.');
+        return redirect()->route('settings.index', ['tab' => 'meta'])->with('success', 'Token berhasil disimpan! Akun Meta sedang disinkronisasi.');
     }
 
     public function redirectToOAuth(MetaGraphService $metaService)
     {
         $credential = MetaCredential::getActive();
         if (empty($credential->app_id)) {
-            return redirect()->route('meta.index')->with('error', 'Harap isi Meta App ID terlebih dahulu sebelum login.');
+            return redirect()->route('settings.index', ['tab' => 'meta'])->with('error', 'Harap isi Meta App ID terlebih dahulu sebelum login.');
         }
 
         $callbackUrl = route('meta.callback');
@@ -137,12 +132,12 @@ class MetaIntegrationController extends Controller
                 'status' => 'failed',
                 'details' => $errMsg,
             ]);
-            return redirect()->route('meta.index')->with('error', "Gagal login dengan Facebook: {$errMsg}");
+            return redirect()->route('settings.index', ['tab' => 'meta'])->with('error', "Gagal login dengan Facebook: {$errMsg}");
         }
 
         $code = $request->get('code');
         if (!$code) {
-            return redirect()->route('meta.index')->with('error', 'Tidak ada authorization code yang diterima dari Meta.');
+            return redirect()->route('settings.index', ['tab' => 'meta'])->with('error', 'Tidak ada authorization code yang diterima dari Meta.');
         }
 
         $callbackUrl = route('meta.callback');
@@ -156,7 +151,7 @@ class MetaIntegrationController extends Controller
                 'status' => 'failed',
                 'details' => $err,
             ]);
-            return redirect()->route('meta.index')->with('error', "Gagal mendapatkan token: {$err}");
+            return redirect()->route('settings.index', ['tab' => 'meta'])->with('error', "Gagal mendapatkan token: {$err}");
         }
 
         $shortLivedToken = $shortRes['data']['access_token'] ?? null;
@@ -191,7 +186,7 @@ class MetaIntegrationController extends Controller
         // 3. Jalankan Full Sync Otomatis untuk menarik Facebook Pages & Instagram Accounts
         Artisan::call('meta:sync-accounts');
 
-        return redirect()->route('meta.index')->with('success', 'Berhasil terhubung dengan Facebook! Pages dan Instagram Accounts telah disinkronkan.');
+        return redirect()->route('settings.index', ['tab' => 'meta'])->with('success', 'Berhasil terhubung dengan Facebook! Pages dan Instagram Accounts telah disinkronkan.');
     }
 
     public function refreshToken(MetaGraphService $metaService)

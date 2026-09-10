@@ -54,7 +54,23 @@
             </button>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Filter: Akun Target -->
+            <div class="space-y-2">
+                <label class="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Akun Target</label>
+                <div class="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1">
+                    <template x-for="opt in accountOptions" :key="opt.value">
+                        <button type="button" @click="toggleFilter('accounts', opt.value)" :class="filters.accounts.includes(opt.value) ? 'bg-indigo-600 text-white border-indigo-600 dark:bg-indigo-500 dark:border-indigo-500' : 'bg-white dark:bg-gray-800 text-slate-600 dark:text-gray-300 border-slate-200 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-600'" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg border transition flex items-center space-x-1.5">
+                            <i class="fa-regular fa-user text-[10px]"></i>
+                            <span x-text="opt.label" class="truncate max-w-[120px]"></span>
+                        </button>
+                    </template>
+                    @if($accounts->isEmpty())
+                        <span class="text-[11px] text-slate-400 dark:text-gray-500 italic">Belum ada akun</span>
+                    @endif
+                </div>
+            </div>
+
             <!-- Filter: Platform / Sosmed -->
             <div class="space-y-2">
                 <label class="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Platform Target</label>
@@ -144,10 +160,11 @@
                     $furthestDate = $project->schedules->max('target_date');
                     $furthestFormatted = $furthestDate ? \Carbon\Carbon::parse($furthestDate)->translatedFormat('d M Y') : 'Kosong';
                     $platformList = $project->targets->pluck('platform_target')->unique()->toArray();
+                    $accountList = $project->targets->pluck('connected_account_id')->unique()->toArray();
                 @endphp
 
                 <div class="card-dark rounded-xl border border-slate-200/90 dark:border-gray-800 hover:border-slate-300 dark:hover:border-gray-700 transition flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-md"
-                     x-show="isVisible('{{ $project->status }}', '{{ $project->content_type }}', {{ json_encode($platformList) }})"
+                     x-show="isVisible('{{ $project->status }}', '{{ $project->content_type }}', {{ json_encode($platformList) }}, {{ json_encode($accountList) }})"
                      x-transition>
                     
                     <div class="p-5 space-y-4">
@@ -311,9 +328,10 @@
                             @php
                                 $pendingCount = $project->schedules->count();
                                 $platformList = $project->targets->pluck('platform_target')->unique()->toArray();
+                                $accountList = $project->targets->pluck('connected_account_id')->unique()->toArray();
                             @endphp
                             <tr class="hover:bg-slate-50/60 dark:hover:bg-gray-900/40 transition"
-                                x-show="isVisible('{{ $project->status }}', '{{ $project->content_type }}', {{ json_encode($platformList) }})">
+                                x-show="isVisible('{{ $project->status }}', '{{ $project->content_type }}', {{ json_encode($platformList) }}, {{ json_encode($accountList) }})">
                                 <!-- Thumbnail -->
                                 <td class="px-4 py-3">
                                     @if($project->mediaFiles->first())
@@ -429,11 +447,20 @@
             viewMode: savedView,
             showFilterPanel: false,
             filters: {
+                accounts: [],
                 platforms: [],
                 statuses: [],
                 contentTypes: [],
             },
 
+            accountOptions: [
+                @foreach($accounts as $acc)
+                {
+                    value: {{ $acc->id }},
+                    label: '{{ addslashes($acc->page_name) }}',
+                },
+                @endforeach
+            ],
             platformOptions: [
                 { value: 'both', label: 'FB + IG', icon: 'fa-solid fa-globe' },
                 { value: 'instagram_only', label: 'Instagram', icon: 'fa-brands fa-instagram' },
@@ -467,6 +494,7 @@
             },
 
             clearAllFilters() {
+                this.filters.accounts = [];
                 this.filters.platforms = [];
                 this.filters.statuses = [];
                 this.filters.contentTypes = [];
@@ -474,15 +502,19 @@
             },
 
             get hasActiveFilters() {
-                return this.filters.platforms.length > 0 || this.filters.statuses.length > 0 || this.filters.contentTypes.length > 0;
+                return this.filters.accounts.length > 0 || this.filters.platforms.length > 0 || this.filters.statuses.length > 0 || this.filters.contentTypes.length > 0;
             },
 
             get activeFilterCount() {
-                return this.filters.platforms.length + this.filters.statuses.length + this.filters.contentTypes.length;
+                return this.filters.accounts.length + this.filters.platforms.length + this.filters.statuses.length + this.filters.contentTypes.length;
             },
 
             get activeFilterTags() {
                 const tags = [];
+                this.filters.accounts.forEach(v => {
+                    const opt = this.accountOptions.find(o => o.value == v);
+                    if (opt) tags.push({ key: 'a_' + v, group: 'accounts', value: v, label: opt.label, icon: 'fa-regular fa-user' });
+                });
                 this.filters.platforms.forEach(v => {
                     const opt = this.platformOptions.find(o => o.value === v);
                     if (opt) tags.push({ key: 'p_' + v, group: 'platforms', value: v, label: opt.label, icon: opt.icon });
@@ -502,23 +534,24 @@
 
             updateFilteredCount() {
                 this.$nextTick(() => {
-                    const selector = this.viewMode === 'card' ? '[x-show*="isVisible"]' : 'tr[x-show*="isVisible"]';
-                    const allItems = document.querySelectorAll(selector);
                     let count = 0;
-                    allItems.forEach(el => {
-                        if (el.style.display !== 'none') count++;
-                    });
-                    // Recount based on logic
-                    count = 0;
                     @foreach($projects as $project)
-                        @php $platformList = $project->targets->pluck('platform_target')->unique()->toArray(); @endphp
-                        if (this.isVisible('{{ $project->status }}', '{{ $project->content_type }}', {!! json_encode($platformList) !!})) count++;
+                        @php 
+                            $platformList = $project->targets->pluck('platform_target')->unique()->toArray(); 
+                            $accountList = $project->targets->pluck('connected_account_id')->unique()->toArray();
+                        @endphp
+                        if (this.isVisible('{{ $project->status }}', '{{ $project->content_type }}', {!! json_encode($platformList) !!}, {!! json_encode($accountList) !!})) count++;
                     @endforeach
                     this.filteredCount = count;
                 });
             },
 
-            isVisible(status, contentType, platforms) {
+            isVisible(status, contentType, platforms, accountIds) {
+                // Account filter
+                if (this.filters.accounts.length > 0) {
+                    const hasMatch = accountIds && accountIds.map(String).some(id => this.filters.accounts.map(String).includes(id));
+                    if (!hasMatch) return false;
+                }
                 // Status filter
                 if (this.filters.statuses.length > 0) {
                     if (!this.filters.statuses.includes(status)) return false;

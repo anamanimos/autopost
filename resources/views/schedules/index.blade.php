@@ -8,7 +8,7 @@
     <!-- Top Action & Filter Bar -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-gray-800 pb-5">
         <div>
-            <h1 class="text-2xl font-bold text-slate-900 dark:text-white flex items-center space-x-3">
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white flex items-center space-x-3">
                 <div class="p-2 bg-gradient-to-tr from-indigo-600 to-purple-600 rounded-lg text-white shadow-md">
                     <i class="fa-solid fa-calendar-check text-base"></i>
                 </div>
@@ -20,6 +20,15 @@
         </div>
 
         <div class="flex items-center space-x-2">
+            <!-- Desktop Filter Toggle Button -->
+            <button @click="showFilterPanel = !showFilterPanel" 
+                    :class="hasActiveFilters ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300' : 'bg-slate-50 dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-slate-600 dark:text-gray-400 hover:text-slate-800 dark:hover:text-gray-200'" 
+                    class="hidden sm:flex px-3 py-2 text-xs font-semibold rounded-lg border transition items-center space-x-1.5 shadow-sm">
+                <i class="fa-solid fa-filter text-[10px]"></i>
+                <span>Filter</span>
+                <span x-show="activeFilterCount > 0" x-text="activeFilterCount" class="ml-1 px-1.5 py-0.5 bg-indigo-600 text-white text-[9px] font-bold rounded-full leading-none"></span>
+            </button>
+
             @if($stats['failed'] > 0)
                 <button onclick="triggerRetryFailed()" 
                         class="px-3.5 py-2 text-xs font-semibold rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 dark:bg-rose-950/80 dark:hover:bg-rose-900/80 dark:border-rose-800 dark:text-rose-300 transition flex items-center space-x-1.5 shadow-sm">
@@ -36,58 +45,162 @@
         </div>
     </div>
 
-    <!-- Stats Cards Summary Grid -->
+    <!-- Stats Cards Summary Grid (Clickable to Filter) -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <a href="{{ route('schedules.index') }}" class="card-dark rounded-xl p-4 border border-slate-200/90 dark:border-gray-800 hover:border-slate-300 dark:hover:border-gray-700 transition shadow-sm">
+        <div @click="clearAllFilters()" 
+             class="card-dark rounded-xl p-4 border border-slate-200/90 dark:border-gray-800 hover:border-indigo-400 dark:hover:border-indigo-600 transition shadow-sm cursor-pointer"
+             :class="!hasActiveFilters ? 'ring-2 ring-indigo-500/50 bg-indigo-50/10' : ''">
             <span class="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider block">Total Antrean</span>
             <span class="text-2xl font-bold text-slate-900 dark:text-white mt-1 block">{{ $stats['total'] }}</span>
-        </a>
+        </div>
 
-        <a href="{{ route('schedules.index', ['status' => 'pending']) }}" class="card-dark rounded-xl p-4 border border-slate-200/90 dark:border-gray-800 hover:border-slate-300 dark:hover:border-gray-700 transition shadow-sm">
+        <div @click="setSingleFilter('statuses', 'pending')" 
+             class="card-dark rounded-xl p-4 border border-slate-200/90 dark:border-gray-800 hover:border-amber-400 dark:hover:border-amber-600 transition shadow-sm cursor-pointer"
+             :class="filters.statuses.includes('pending') ? 'ring-2 ring-amber-500 bg-amber-50/20' : ''">
             <span class="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">Menunggu (Pending)</span>
             <span class="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1 block">{{ $stats['pending'] }}</span>
-        </a>
+        </div>
 
-        <a href="{{ route('schedules.index', ['status' => 'completed']) }}" class="card-dark rounded-xl p-4 border border-slate-200/90 dark:border-gray-800 hover:border-slate-300 dark:hover:border-gray-700 transition shadow-sm">
+        <div @click="setSingleFilter('statuses', 'completed')" 
+             class="card-dark rounded-xl p-4 border border-slate-200/90 dark:border-gray-800 hover:border-emerald-400 dark:hover:border-emerald-600 transition shadow-sm cursor-pointer"
+             :class="filters.statuses.includes('completed') ? 'ring-2 ring-emerald-500 bg-emerald-50/20' : ''">
             <span class="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">Berhasil (Completed)</span>
             <span class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1 block">{{ $stats['completed'] }}</span>
-        </a>
+        </div>
 
-        <a href="{{ route('schedules.index', ['status' => 'failed_all']) }}" class="card-dark rounded-xl p-4 border border-slate-200/90 dark:border-gray-800 hover:border-slate-300 dark:hover:border-gray-700 transition shadow-sm">
+        <div @click="setSingleFilter('statuses', 'failed')" 
+             class="card-dark rounded-xl p-4 border border-slate-200/90 dark:border-gray-800 hover:border-rose-400 dark:hover:border-rose-600 transition shadow-sm cursor-pointer"
+             :class="filters.statuses.includes('failed') || filters.statuses.includes('partially_failed') ? 'ring-2 ring-rose-500 bg-rose-50/20' : ''">
             <span class="text-[10px] font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider block">Gagal / Parsial</span>
             <span class="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1 block">{{ $stats['failed'] }}</span>
-        </a>
+        </div>
     </div>
 
-    <!-- Filter Bar -->
-    <div class="card-dark rounded-xl p-4 border border-slate-200/90 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs shadow-sm">
-        <form action="{{ route('schedules.index') }}" method="GET" class="flex flex-wrap items-center gap-3">
-            <div class="flex items-center space-x-2">
-                <span class="text-slate-600 dark:text-gray-400 font-medium">Status:</span>
-                <select name="status" onchange="this.form.submit()" class="bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs text-slate-800 dark:text-white focus:outline-none focus:border-indigo-500">
-                    <option value="all" {{ $statusFilter === 'all' ? 'selected' : '' }}>Semua Status</option>
-                    <option value="pending" {{ $statusFilter === 'pending' ? 'selected' : '' }}>Pending</option>
-                    <option value="completed" {{ $statusFilter === 'completed' ? 'selected' : '' }}>Selesai</option>
-                    <option value="failed_all" {{ $statusFilter === 'failed_all' ? 'selected' : '' }}>Gagal / Parsial</option>
-                </select>
+    <!-- Desktop Filter Panel (collapsible) -->
+    <div x-show="showFilterPanel" 
+         x-transition:enter="transition ease-out duration-200" 
+         x-transition:enter-start="opacity-0 -translate-y-2" 
+         x-transition:enter-end="opacity-100 translate-y-0" 
+         x-transition:leave="transition ease-in duration-150" 
+         x-transition:leave-start="opacity-100 translate-y-0" 
+         x-transition:leave-end="opacity-0 -translate-y-2" 
+         class="hidden sm:block bg-slate-50/80 dark:bg-gray-900/60 border border-slate-200 dark:border-gray-800 rounded-xl p-4 space-y-4">
+        
+        <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-700 dark:text-gray-300 uppercase tracking-wider flex items-center space-x-1.5">
+                <i class="fa-solid fa-filter text-indigo-500 text-[11px]"></i>
+                <span>Filter Antrean Jadwal</span>
+            </span>
+            <button @click="clearAllFilters()" x-show="hasActiveFilters" class="text-[11px] text-rose-600 dark:text-rose-400 hover:underline font-medium">
+                <i class="fa-solid fa-xmark mr-0.5"></i> Hapus Semua Filter
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <!-- Filter: Project Campaign -->
+            <div class="space-y-2">
+                <label class="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Project Campaign</label>
+                <div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+                    <template x-for="opt in projectOptions" :key="opt.value">
+                        <button type="button" @click="toggleFilter('projects', opt.value)" 
+                                :class="filters.projects.includes(opt.value) ? 'bg-indigo-600 text-white border-indigo-600 dark:bg-indigo-500 dark:border-indigo-500' : 'bg-white dark:bg-gray-800 text-slate-600 dark:text-gray-300 border-slate-200 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-600'" 
+                                class="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg border transition flex items-center space-x-1.5">
+                            <i class="fa-solid fa-layer-group text-[10px]"></i>
+                            <span x-text="opt.label" class="truncate max-w-[120px]"></span>
+                        </button>
+                    </template>
+                    @if($projects->isEmpty())
+                        <span class="text-[11px] text-slate-400 dark:text-gray-500 italic">Belum ada campaign</span>
+                    @endif
+                </div>
             </div>
 
-            <div class="flex items-center space-x-2">
-                <span class="text-slate-600 dark:text-gray-400 font-medium">Project:</span>
-                <select name="project_id" onchange="this.form.submit()" class="bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs text-slate-800 dark:text-white focus:outline-none focus:border-indigo-500">
-                    <option value="">Semua Campaign</option>
-                    @foreach($projects as $proj)
-                        <option value="{{ $proj->id }}" {{ $projectFilter == $proj->id ? 'selected' : '' }}>{{ $proj->name }}</option>
-                    @endforeach
-                </select>
+            <!-- Filter: Akun Target -->
+            <div class="space-y-2">
+                <label class="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Akun Target</label>
+                <div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+                    <template x-for="opt in accountOptions" :key="opt.value">
+                        <button type="button" @click="toggleFilter('accounts', opt.value)" 
+                                :class="filters.accounts.includes(opt.value) ? 'bg-indigo-600 text-white border-indigo-600 dark:bg-indigo-500 dark:border-indigo-500' : 'bg-white dark:bg-gray-800 text-slate-600 dark:text-gray-300 border-slate-200 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-600'" 
+                                class="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg border transition flex items-center space-x-1.5">
+                            <i class="fa-regular fa-user text-[10px]"></i>
+                            <span x-text="opt.label" class="truncate max-w-[120px]"></span>
+                        </button>
+                    </template>
+                    @if($accounts->isEmpty())
+                        <span class="text-[11px] text-slate-400 dark:text-gray-500 italic">Belum ada akun</span>
+                    @endif
+                </div>
             </div>
 
-            @if($statusFilter !== 'all' || $projectFilter)
-                <a href="{{ route('schedules.index') }}" class="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">Reset Filter</a>
-            @endif
-        </form>
+            <!-- Filter: Platform / Sosmed -->
+            <div class="space-y-2">
+                <label class="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Platform Target</label>
+                <div class="flex flex-wrap gap-1.5">
+                    <template x-for="opt in platformOptions" :key="opt.value">
+                        <button type="button" @click="toggleFilter('platforms', opt.value)" 
+                                :class="filters.platforms.includes(opt.value) ? 'bg-indigo-600 text-white border-indigo-600 dark:bg-indigo-500 dark:border-indigo-500' : 'bg-white dark:bg-gray-800 text-slate-600 dark:text-gray-300 border-slate-200 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-600'" 
+                                class="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg border transition flex items-center space-x-1.5">
+                            <i :class="opt.icon" class="text-[10px]"></i>
+                            <span x-text="opt.label"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
 
-        <span class="text-slate-500 dark:text-gray-400 text-[11px]">Menampilkan {{ $schedules->count() }} dari total {{ $schedules->total() }} jadwal</span>
+            <!-- Filter: Status -->
+            <div class="space-y-2">
+                <label class="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Status Jadwal</label>
+                <div class="flex flex-wrap gap-1.5">
+                    <template x-for="opt in statusOptions" :key="opt.value">
+                        <button type="button" @click="toggleFilter('statuses', opt.value)" 
+                                :class="filters.statuses.includes(opt.value) ? 'bg-indigo-600 text-white border-indigo-600 dark:bg-indigo-500 dark:border-indigo-500' : 'bg-white dark:bg-gray-800 text-slate-600 dark:text-gray-300 border-slate-200 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-600'" 
+                                class="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg border transition flex items-center space-x-1.5">
+                            <span :class="opt.color" class="w-1.5 h-1.5 rounded-full"></span>
+                            <span x-text="opt.label"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Filter: Content Type -->
+            <div class="space-y-2">
+                <label class="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Tipe Konten</label>
+                <div class="flex flex-wrap gap-1.5">
+                    <template x-for="opt in contentTypeOptions" :key="opt.value">
+                        <button type="button" @click="toggleFilter('contentTypes', opt.value)" 
+                                :class="filters.contentTypes.includes(opt.value) ? 'bg-indigo-600 text-white border-indigo-600 dark:bg-indigo-500 dark:border-indigo-500' : 'bg-white dark:bg-gray-800 text-slate-600 dark:text-gray-300 border-slate-200 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-600'" 
+                                class="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg border transition flex items-center space-x-1.5">
+                            <i :class="opt.icon" class="text-[10px]"></i>
+                            <span x-text="opt.label"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Filter Tags (Desktop & Mobile) -->
+    <div x-show="hasActiveFilters" x-transition class="flex flex-wrap items-center gap-2">
+        <span class="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Filter Aktif:</span>
+        <template x-for="tag in activeFilterTags" :key="tag.key">
+            <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 rounded-lg text-[11px] font-medium">
+                <i :class="tag.icon" class="text-[9px]"></i>
+                <span x-text="tag.label"></span>
+                <button @click="removeFilter(tag.group, tag.value)" class="ml-0.5 text-indigo-400 hover:text-indigo-700 dark:text-indigo-500 dark:hover:text-indigo-200 transition">
+                    <i class="fa-solid fa-xmark text-[9px]"></i>
+                </button>
+            </span>
+        </template>
+        <button @click="clearAllFilters()" class="text-[11px] text-rose-600 dark:text-rose-400 hover:underline font-semibold ml-1">
+            Reset
+        </button>
+    </div>
+
+    <!-- Results Count -->
+    <div x-show="hasActiveFilters || searchQuery" class="text-[11px] text-slate-500 dark:text-gray-400 flex items-center justify-between">
+        <span>Menampilkan <strong class="text-slate-800 dark:text-gray-200" x-text="filteredCount"></strong> dari <strong>{{ $schedules->count() }}</strong> antrean pada halaman ini</span>
+        <span x-show="searchQuery" class="italic text-slate-400">Pencarian: "<span x-text="searchQuery"></span>"</span>
     </div>
 
     <!-- Schedules Table (Desktop) & Cards (Mobile) -->
@@ -115,13 +228,19 @@
                         @foreach($schedules as $sch)
                             @php
                                 $project = $sch->projectCampaign;
+                                $schStatus = $sch->status;
+                                $contentType = $project ? $project->content_type : '';
+                                $platformList = $project ? $project->targets->pluck('platform_target')->unique()->toArray() : [];
+                                $accountList = $project ? $project->targets->pluck('connected_account_id')->unique()->toArray() : [];
+                                $projId = $sch->project_campaign_id;
+                                $searchString = addslashes(($project ? $project->name : '') . ' ' . ($sch->target_date ? $sch->target_date->format('d M Y') : '') . ' ' . $sch->target_time . ' ' . ($sch->notes ?? ''));
                             @endphp
                             <tr class="hover:bg-slate-50/80 dark:hover:bg-gray-900/40 transition"
-                                x-show="matchesSearch('{{ addslashes($project ? $project->name : '') }} {{ $sch->target_date->format('d M Y') }} {{ $sch->target_time }} {{ addslashes($sch->notes ?? '') }}')">
+                                x-show="isVisible('{{ $schStatus }}', '{{ $contentType }}', {!! json_encode($platformList) !!}, {!! json_encode($accountList) !!}, {{ $projId ?? 'null' }}, '{{ $searchString }}')">
                                 <!-- Media Thumbnail -->
                                 <td class="py-3 px-4">
                                     <div class="w-11 h-11 rounded-lg bg-slate-100 dark:bg-gray-900 border border-slate-200 dark:border-gray-800 overflow-hidden flex-shrink-0 cursor-pointer hover:border-indigo-500 transition"
-                                         onclick="openLightboxDirect('{{ $sch->media_url }}', false, '{{ $project ? $project->name : 'Jadwal' }}')">
+                                         onclick="openLightboxDirect('{{ $sch->media_url }}', false, '{{ $project ? addslashes($project->name) : 'Jadwal' }}')">
                                         <img src="{{ $sch->media_url }}" class="w-full h-full object-cover">
                                     </div>
                                 </td>
@@ -148,7 +267,7 @@
 
                                 <!-- Jadwal Tayang -->
                                 <td class="py-3 px-4">
-                                    <span class="font-bold text-slate-900 dark:text-white block">{{ $sch->target_date->format('d M Y') }}</span>
+                                    <span class="font-bold text-slate-900 dark:text-white block">{{ $sch->target_date ? $sch->target_date->format('d M Y') : '-' }}</span>
                                     <span class="text-[11px] text-slate-500 dark:text-gray-400 flex items-center space-x-1">
                                         <i class="fa-regular fa-clock text-[10px] text-indigo-600 dark:text-indigo-400"></i>
                                         <span>{{ $sch->target_time }} WIB</span>
@@ -270,9 +389,15 @@
                 @foreach($schedules as $sch)
                     @php
                         $project = $sch->projectCampaign;
+                        $schStatus = $sch->status;
+                        $contentType = $project ? $project->content_type : '';
+                        $platformList = $project ? $project->targets->pluck('platform_target')->unique()->toArray() : [];
+                        $accountList = $project ? $project->targets->pluck('connected_account_id')->unique()->toArray() : [];
+                        $projId = $sch->project_campaign_id;
+                        $searchString = addslashes(($project ? $project->name : '') . ' ' . ($sch->target_date ? $sch->target_date->format('d M Y') : '') . ' ' . $sch->target_time . ' ' . ($sch->notes ?? ''));
                     @endphp
                     <div class="p-4 space-y-3" 
-                         x-show="matchesSearch('{{ addslashes($project ? $project->name : '') }} {{ $sch->target_date->format('d M Y') }} {{ $sch->target_time }} {{ addslashes($sch->notes ?? '') }}')">
+                         x-show="isVisible('{{ $schStatus }}', '{{ $contentType }}', {!! json_encode($platformList) !!}, {!! json_encode($accountList) !!}, {{ $projId ?? 'null' }}, '{{ $searchString }}')">
                         <!-- Top Info: Thumbnail + Details + Status -->
                         <div class="flex items-start justify-between gap-3">
                             <div class="flex items-start space-x-3 min-w-0">
@@ -295,7 +420,7 @@
                                     </div>
                                     <div class="flex items-center space-x-1.5 text-xs text-slate-700 dark:text-gray-300 mt-1 font-semibold">
                                         <i class="fa-regular fa-calendar text-indigo-500 text-[11px]"></i>
-                                        <span>{{ $sch->target_date->format('d M Y') }}</span>
+                                        <span>{{ $sch->target_date ? $sch->target_date->format('d M Y') : '-' }}</span>
                                         <span class="text-slate-400 dark:text-gray-500">·</span>
                                         <i class="fa-regular fa-clock text-indigo-500 text-[11px]"></i>
                                         <span>{{ $sch->target_time }} WIB</span>
@@ -418,9 +543,9 @@
                 class="w-12 h-12 rounded-full bg-slate-900/90 dark:bg-slate-800/95 border border-slate-700/80 text-white shadow-xl flex items-center justify-center transition-all duration-200 active:scale-90 relative"
                 title="Buka Filter Jadwal">
             <i class="fa-solid fa-filter text-sm text-indigo-400"></i>
-            @if($statusFilter !== 'all' || $projectFilter)
+            <template x-if="hasActiveFilters">
                 <span class="absolute -top-1 -right-1 w-3 h-3 bg-indigo-600 rounded-full border-2 border-white dark:border-gray-900 shadow"></span>
-            @endif
+            </template>
         </button>
 
         <!-- Floating Search Icon (Expands to 100% Bar) -->
@@ -446,7 +571,7 @@
         <input type="text" x-ref="scheduleSearchInput" x-model="searchQuery" 
                placeholder="Cari nama campaign, tanggal, atau catatan..." 
                class="flex-1 bg-transparent text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none py-1.5 font-medium">
-        <button type="button" x-show="searchQuery" @click="searchQuery = ''" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-gray-300 text-xs">
+        <button type="button" x-show="searchQuery" @click="searchQuery = ''; updateFilteredCount()" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-gray-300 text-xs">
             <i class="fa-solid fa-circle-xmark"></i>
         </button>
         <button type="button" @click="searchOpen = false" class="px-3 py-1.5 bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 rounded-lg text-xs font-semibold hover:bg-slate-200 dark:hover:bg-gray-700">
@@ -489,41 +614,94 @@
                 </button>
             </div>
 
-            <form action="{{ route('schedules.index') }}" method="GET" class="space-y-4">
-                <!-- Status Filter -->
-                <div class="space-y-1.5">
-                    <label class="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider block">Status Jadwal</label>
-                    <select name="status" class="w-full bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl p-3 text-xs text-slate-800 dark:text-white focus:outline-none focus:border-indigo-500">
-                        <option value="all" {{ $statusFilter === 'all' ? 'selected' : '' }}>Semua Status</option>
-                        <option value="pending" {{ $statusFilter === 'pending' ? 'selected' : '' }}>Pending (Menunggu Tayang)</option>
-                        <option value="completed" {{ $statusFilter === 'completed' ? 'selected' : '' }}>Selesai (Sudah Terbit)</option>
-                        <option value="failed_all" {{ $statusFilter === 'failed_all' ? 'selected' : '' }}>Gagal / Parsial</option>
-                    </select>
+            <div class="space-y-4">
+                <!-- Group 1: Project Campaign -->
+                <div class="space-y-2">
+                    <label class="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider block">Project Campaign</label>
+                    <div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+                        <template x-for="opt in projectOptions" :key="opt.value">
+                            <button type="button" @click="toggleFilter('projects', opt.value)" 
+                                    :class="filters.projects.includes(opt.value) ? 'bg-indigo-600 text-white border-indigo-600 dark:bg-indigo-500 dark:border-indigo-500' : 'bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border-slate-200 dark:border-gray-700'" 
+                                    class="px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition flex items-center space-x-1.5">
+                                <i class="fa-solid fa-layer-group text-[10px]"></i>
+                                <span x-text="opt.label"></span>
+                            </button>
+                        </template>
+                    </div>
                 </div>
 
-                <!-- Project Campaign Filter -->
-                <div class="space-y-1.5">
-                    <label class="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider block">Project Campaign</label>
-                    <select name="project_id" class="w-full bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl p-3 text-xs text-slate-800 dark:text-white focus:outline-none focus:border-indigo-500">
-                        <option value="">Semua Campaign</option>
-                        @foreach($projects as $proj)
-                            <option value="{{ $proj->id }}" {{ $projectFilter == $proj->id ? 'selected' : '' }}>{{ $proj->name }}</option>
-                        @endforeach
-                    </select>
+                <!-- Group 2: Akun Target -->
+                <div class="space-y-2">
+                    <label class="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider block">Akun Target</label>
+                    <div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+                        <template x-for="opt in accountOptions" :key="opt.value">
+                            <button type="button" @click="toggleFilter('accounts', opt.value)" 
+                                    :class="filters.accounts.includes(opt.value) ? 'bg-indigo-600 text-white border-indigo-600 dark:bg-indigo-500 dark:border-indigo-500' : 'bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border-slate-200 dark:border-gray-700'" 
+                                    class="px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition flex items-center space-x-1.5">
+                                <i class="fa-regular fa-user text-[10px]"></i>
+                                <span x-text="opt.label"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Group 3: Platform Target -->
+                <div class="space-y-2">
+                    <label class="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider block">Platform Target</label>
+                    <div class="flex flex-wrap gap-1.5">
+                        <template x-for="opt in platformOptions" :key="opt.value">
+                            <button type="button" @click="toggleFilter('platforms', opt.value)" 
+                                    :class="filters.platforms.includes(opt.value) ? 'bg-indigo-600 text-white border-indigo-600 dark:bg-indigo-500 dark:border-indigo-500' : 'bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border-slate-200 dark:border-gray-700'" 
+                                    class="px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition flex items-center space-x-1.5">
+                                <i :class="opt.icon" class="text-[10px]"></i>
+                                <span x-text="opt.label"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Group 4: Status -->
+                <div class="space-y-2">
+                    <label class="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider block">Status Jadwal</label>
+                    <div class="flex flex-wrap gap-1.5">
+                        <template x-for="opt in statusOptions" :key="opt.value">
+                            <button type="button" @click="toggleFilter('statuses', opt.value)" 
+                                    :class="filters.statuses.includes(opt.value) ? 'bg-indigo-600 text-white border-indigo-600 dark:bg-indigo-500 dark:border-indigo-500' : 'bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border-slate-200 dark:border-gray-700'" 
+                                    class="px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition flex items-center space-x-1.5">
+                                <span :class="opt.color" class="w-1.5 h-1.5 rounded-full"></span>
+                                <span x-text="opt.label"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Group 5: Content Type -->
+                <div class="space-y-2">
+                    <label class="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider block">Tipe Konten</label>
+                    <div class="flex flex-wrap gap-1.5">
+                        <template x-for="opt in contentTypeOptions" :key="opt.value">
+                            <button type="button" @click="toggleFilter('contentTypes', opt.value)" 
+                                    :class="filters.contentTypes.includes(opt.value) ? 'bg-indigo-600 text-white border-indigo-600 dark:bg-indigo-500 dark:border-indigo-500' : 'bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border-slate-200 dark:border-gray-700'" 
+                                    class="px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition flex items-center space-x-1.5">
+                                <i :class="opt.icon" class="text-[10px]"></i>
+                                <span x-text="opt.label"></span>
+                            </button>
+                        </template>
+                    </div>
                 </div>
 
                 <!-- Buttons -->
                 <div class="pt-3 border-t border-slate-200 dark:border-gray-800 flex items-center space-x-2">
-                    <a href="{{ route('schedules.index') }}" 
-                       class="flex-1 py-2.5 px-4 rounded-xl border border-slate-300 dark:border-gray-700 text-slate-700 dark:text-gray-300 font-semibold text-xs text-center hover:bg-slate-100 dark:hover:bg-gray-800 transition">
+                    <button type="button" @click="clearAllFilters()"
+                            class="flex-1 py-2.5 px-4 rounded-xl border border-slate-300 dark:border-gray-700 text-slate-700 dark:text-gray-300 font-semibold text-xs text-center hover:bg-slate-100 dark:hover:bg-gray-800 transition">
                         Reset Filter
-                    </a>
-                    <button type="submit" 
+                    </button>
+                    <button type="button" @click="mobileFilterOpen = false"
                             class="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-md transition text-center">
-                        Terapkan Filter
+                        Terapkan (<span x-text="filteredCount"></span>)
                     </button>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 
@@ -557,12 +735,192 @@
 <script>
     function schedulePage() {
         return {
+            showFilterPanel: false,
+            mobileFilterOpen: false,
             searchOpen: false,
             searchQuery: '',
-            mobileFilterOpen: false,
+            filters: {
+                projects: [
+                    @if(!empty($projectFilter)) {{ $projectFilter }} @endif
+                ],
+                accounts: [],
+                platforms: [],
+                statuses: [
+                    @if($statusFilter !== 'all') '{{ $statusFilter === "failed_all" ? "failed" : $statusFilter }}' @endif
+                ],
+                contentTypes: [],
+            },
+
+            projectOptions: [
+                @foreach($projects as $proj)
+                {
+                    value: {{ $proj->id }},
+                    label: '{{ addslashes($proj->name) }}',
+                },
+                @endforeach
+            ],
+            accountOptions: [
+                @foreach($accounts as $acc)
+                {
+                    value: {{ $acc->id }},
+                    label: '{{ addslashes($acc->page_name) }}',
+                },
+                @endforeach
+            ],
+            platformOptions: [
+                { value: 'both', label: 'FB + IG', icon: 'fa-solid fa-globe' },
+                { value: 'instagram_only', label: 'Instagram', icon: 'fa-brands fa-instagram' },
+                { value: 'facebook_only', label: 'Facebook', icon: 'fa-brands fa-facebook' },
+            ],
+            statusOptions: [
+                { value: 'pending', label: 'Pending', icon: 'fa-solid fa-clock', color: 'bg-amber-500' },
+                { value: 'completed', label: 'Selesai', icon: 'fa-solid fa-circle-check', color: 'bg-emerald-500' },
+                { value: 'failed', label: 'Gagal', icon: 'fa-solid fa-circle-xmark', color: 'bg-rose-500' },
+                { value: 'partially_failed', label: 'Parsial', icon: 'fa-solid fa-triangle-exclamation', color: 'bg-orange-500' },
+                { value: 'skipped', label: 'Dilewati', icon: 'fa-solid fa-forward', color: 'bg-slate-400' },
+            ],
+            contentTypeOptions: [
+                { value: 'story', label: 'Story', icon: 'fa-solid fa-circle-notch' },
+                { value: 'post', label: 'Feed Post', icon: 'fa-solid fa-square-rss' },
+            ],
+
+            toggleFilter(group, value) {
+                const idx = this.filters[group].indexOf(value);
+                if (idx > -1) {
+                    this.filters[group].splice(idx, 1);
+                } else {
+                    this.filters[group].push(value);
+                }
+                this.updateFilteredCount();
+            },
+
+            setSingleFilter(group, value) {
+                if (this.filters[group].includes(value)) {
+                    this.filters[group] = [];
+                } else {
+                    this.filters[group] = [value];
+                }
+                this.updateFilteredCount();
+            },
+
+            removeFilter(group, value) {
+                const idx = this.filters[group].indexOf(value);
+                if (idx > -1) {
+                    this.filters[group].splice(idx, 1);
+                }
+                this.updateFilteredCount();
+            },
+
+            clearAllFilters() {
+                this.filters.projects = [];
+                this.filters.accounts = [];
+                this.filters.platforms = [];
+                this.filters.statuses = [];
+                this.filters.contentTypes = [];
+                this.searchQuery = '';
+                this.updateFilteredCount();
+            },
+
+            get hasActiveFilters() {
+                return this.filters.projects.length > 0 || 
+                       this.filters.accounts.length > 0 || 
+                       this.filters.platforms.length > 0 || 
+                       this.filters.statuses.length > 0 || 
+                       this.filters.contentTypes.length > 0;
+            },
+
+            get activeFilterCount() {
+                return this.filters.projects.length + 
+                       this.filters.accounts.length + 
+                       this.filters.platforms.length + 
+                       this.filters.statuses.length + 
+                       this.filters.contentTypes.length;
+            },
+
+            get activeFilterTags() {
+                const tags = [];
+                this.filters.projects.forEach(v => {
+                    const opt = this.projectOptions.find(o => o.value == v);
+                    if (opt) tags.push({ key: 'pr_' + v, group: 'projects', value: v, label: opt.label, icon: 'fa-solid fa-layer-group' });
+                });
+                this.filters.accounts.forEach(v => {
+                    const opt = this.accountOptions.find(o => o.value == v);
+                    if (opt) tags.push({ key: 'a_' + v, group: 'accounts', value: v, label: opt.label, icon: 'fa-regular fa-user' });
+                });
+                this.filters.platforms.forEach(v => {
+                    const opt = this.platformOptions.find(o => o.value === v);
+                    if (opt) tags.push({ key: 'p_' + v, group: 'platforms', value: v, label: opt.label, icon: opt.icon });
+                });
+                this.filters.statuses.forEach(v => {
+                    const opt = this.statusOptions.find(o => o.value === v);
+                    if (opt) tags.push({ key: 's_' + v, group: 'statuses', value: v, label: opt.label, icon: 'fa-solid fa-circle-dot' });
+                });
+                this.filters.contentTypes.forEach(v => {
+                    const opt = this.contentTypeOptions.find(o => o.value === v);
+                    if (opt) tags.push({ key: 'c_' + v, group: 'contentTypes', value: v, label: opt.label, icon: opt.icon });
+                });
+                return tags;
+            },
+
+            filteredCount: {{ $schedules->count() }},
+
+            updateFilteredCount() {
+                this.$nextTick(() => {
+                    let count = 0;
+                    @foreach($schedules as $sch)
+                        @php
+                            $project = $sch->projectCampaign;
+                            $schStatus = $sch->status;
+                            $contentType = $project ? $project->content_type : '';
+                            $platformList = $project ? $project->targets->pluck('platform_target')->unique()->toArray() : [];
+                            $accountList = $project ? $project->targets->pluck('connected_account_id')->unique()->toArray() : [];
+                            $projId = $sch->project_campaign_id;
+                            $searchString = addslashes(($project ? $project->name : '') . ' ' . ($sch->target_date ? $sch->target_date->format('d M Y') : '') . ' ' . $sch->target_time . ' ' . ($sch->notes ?? ''));
+                        @endphp
+                        if (this.isVisible('{{ $schStatus }}', '{{ $contentType }}', {!! json_encode($platformList) !!}, {!! json_encode($accountList) !!}, {{ $projId ?? 'null' }}, '{{ $searchString }}')) count++;
+                    @endforeach
+                    this.filteredCount = count;
+                });
+            },
+
+            isVisible(status, contentType, platforms, accountIds, projectId, searchText) {
+                // Search query filter
+                if (this.searchQuery && this.searchQuery.trim() !== '') {
+                    const q = this.searchQuery.trim().toLowerCase();
+                    if (!searchText.toLowerCase().includes(q)) return false;
+                }
+                // Project filter
+                if (this.filters.projects.length > 0) {
+                    if (!projectId || !this.filters.projects.map(String).includes(String(projectId))) return false;
+                }
+                // Account filter
+                if (this.filters.accounts.length > 0) {
+                    const hasMatch = accountIds && accountIds.map(String).some(id => this.filters.accounts.map(String).includes(id));
+                    if (!hasMatch) return false;
+                }
+                // Status filter
+                if (this.filters.statuses.length > 0) {
+                    if (!this.filters.statuses.includes(status)) return false;
+                }
+                // Content Type filter
+                if (this.filters.contentTypes.length > 0) {
+                    if (!this.filters.contentTypes.includes(contentType)) return false;
+                }
+                // Platform filter
+                if (this.filters.platforms.length > 0) {
+                    const hasMatch = platforms && platforms.some(p => this.filters.platforms.includes(p));
+                    if (!hasMatch) return false;
+                }
+                return true;
+            },
+
             matchesSearch(text) {
                 if (!this.searchQuery || this.searchQuery.trim() === '') return true;
                 return text.toLowerCase().includes(this.searchQuery.trim().toLowerCase());
+            },
+
+            init() {
+                this.updateFilteredCount();
             }
         };
     }

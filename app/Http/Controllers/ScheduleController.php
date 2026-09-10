@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\PublishScheduleJob;
+use App\Models\ConnectedAccount;
 use App\Models\ProjectCampaign;
 use App\Models\Schedule;
 use App\Services\MetaGraphService;
@@ -15,6 +16,7 @@ class ScheduleController extends Controller
     public function index(Request $request)
     {
         $projects = ProjectCampaign::orderBy('name')->get();
+        $accounts = ConnectedAccount::where('is_active', true)->orderBy('page_name')->get();
         $statusFilter = $request->get('status', 'all');
         $projectFilter = $request->get('project_id');
 
@@ -45,7 +47,7 @@ class ScheduleController extends Controller
             'failed' => Schedule::whereIn('status', ['failed', 'partially_failed'])->count(),
         ];
 
-        return view('schedules.index', compact('schedules', 'projects', 'stats', 'statusFilter', 'projectFilter'));
+        return view('schedules.index', compact('schedules', 'projects', 'accounts', 'stats', 'statusFilter', 'projectFilter'));
     }
 
     public function showLogs($id)

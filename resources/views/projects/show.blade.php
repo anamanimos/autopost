@@ -224,7 +224,8 @@
             </div>
         </div>
 
-        <div class="overflow-x-auto">
+        <!-- ========== DESKTOP TABLE VIEW (hidden on mobile) ========== -->
+        <div class="hidden md:block overflow-x-auto">
             <table class="w-full text-left text-xs text-slate-700 dark:text-gray-300">
                 <thead class="bg-slate-100/90 dark:bg-gray-900/80 text-slate-600 dark:text-gray-400 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-200 dark:border-gray-800">
                     <tr>
@@ -319,6 +320,96 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- ========== MOBILE CARD VIEW FOR SCHEDULES (visible on mobile < md) ========== -->
+        <div class="block md:hidden divide-y divide-slate-200/80 dark:divide-gray-800/60">
+            @foreach($project->schedules->take(20) as $sch)
+                <div class="py-3.5 space-y-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-start space-x-3 min-w-0">
+                            <div class="w-12 h-12 rounded-xl bg-slate-100 dark:bg-gray-900 border border-slate-200 dark:border-gray-800 overflow-hidden flex-shrink-0 cursor-pointer shadow-sm"
+                                 onclick="openLightboxDirect('{{ $sch->media_url }}', false, 'Jadwal {{ $sch->target_date->format('d M Y') }}')">
+                                <img src="{{ $sch->media_url }}" class="w-full h-full object-cover">
+                            </div>
+                            <div class="min-w-0">
+                                <div class="font-bold text-xs text-slate-900 dark:text-white flex items-center space-x-1.5">
+                                    <i class="fa-regular fa-calendar text-indigo-500 text-[11px]"></i>
+                                    <span>{{ $sch->target_date->format('d M Y') }}</span>
+                                </div>
+                                <div class="text-[11px] text-slate-500 dark:text-gray-400 mt-0.5 flex items-center space-x-1">
+                                    <i class="fa-regular fa-clock text-indigo-500 text-[10px]"></i>
+                                    <span>{{ $sch->target_time }} WIB</span>
+                                </div>
+                                @if($sch->notes)
+                                    <p class="text-[10px] text-slate-500 dark:text-gray-400 mt-1 truncate" title="{{ $sch->notes }}">
+                                        {{ $sch->notes }}
+                                    </p>
+                                @endif
+                            </div>
+                        </div>
+
+                        <!-- Status Badge / Button -->
+                        <button type="button" onclick="openChangeStatusModal({{ $sch->id }}, '{{ $sch->status }}', '{{ $sch->target_date ? $sch->target_date->translatedFormat('d M Y') : '' }}')"
+                                class="inline-flex items-center space-x-1 cursor-pointer flex-shrink-0" title="Klik untuk mengubah status">
+                            @if($sch->status === 'completed')
+                                <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-md bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400">
+                                    Selesai <i class="fa-solid fa-pen text-[8px] ml-0.5 opacity-60"></i>
+                                </span>
+                            @elseif($sch->status === 'pending')
+                                <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-md bg-amber-50 dark:bg-amber-950/80 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400">
+                                    Pending <i class="fa-solid fa-pen text-[8px] ml-0.5 opacity-60"></i>
+                                </span>
+                            @elseif($sch->status === 'processing')
+                                <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-md bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-400 animate-pulse">
+                                    Memproses
+                                </span>
+                            @elseif($sch->status === 'skipped')
+                                <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-gray-400">
+                                    Dilewati <i class="fa-solid fa-pen text-[8px] ml-0.5 opacity-60"></i>
+                                </span>
+                            @elseif($sch->status === 'partially_failed')
+                                <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-md bg-orange-50 dark:bg-orange-950/80 border border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-400">
+                                    Sebagian Gagal <i class="fa-solid fa-pen text-[8px] ml-0.5 opacity-60"></i>
+                                </span>
+                            @else
+                                <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-md bg-rose-50 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400">
+                                    Gagal <i class="fa-solid fa-pen text-[8px] ml-0.5 opacity-60"></i>
+                                </span>
+                            @endif
+                        </button>
+                    </div>
+
+                    <!-- Actions on Mobile -->
+                    <div class="flex items-center space-x-2 pt-1">
+                        @if($sch->status === 'completed')
+                            <button onclick="promptRepublishOption({{ $sch->id }}, '{{ $sch->target_date ? $sch->target_date->translatedFormat('d M Y') : '' }} {{ $sch->target_time }} WIB', '{{ addslashes($project->name) }}')" 
+                                    class="flex-1 py-2 px-3 text-xs font-semibold rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-600/20 dark:hover:bg-amber-600 dark:text-amber-300 dark:hover:text-white border border-amber-200 dark:border-amber-500/30 transition shadow-sm flex items-center justify-center space-x-1.5">
+                                <i class="fa-solid fa-arrows-rotate text-[11px]"></i>
+                                <span>Terbitkan Ulang</span>
+                            </button>
+                        @elseif(in_array($sch->status, ['failed', 'partially_failed']))
+                            <button onclick="publishScheduledWithProgress({{ $sch->id }}, '{{ $sch->target_date ? $sch->target_date->translatedFormat('d M Y') : '' }} {{ $sch->target_time }} WIB', '{{ addslashes($project->name) }}')" 
+                                    class="flex-1 py-2 px-3 text-xs font-semibold rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-600/20 dark:hover:bg-rose-600 dark:text-rose-300 dark:hover:text-white border border-rose-200 dark:border-rose-500/30 transition shadow-sm flex items-center justify-center space-x-1.5">
+                                <i class="fa-solid fa-rotate-left text-[11px]"></i>
+                                <span>Coba Lagi</span>
+                            </button>
+                        @else
+                            <button onclick="publishScheduledWithProgress({{ $sch->id }}, '{{ $sch->target_date ? $sch->target_date->translatedFormat('d M Y') : '' }} {{ $sch->target_time }} WIB', '{{ addslashes($project->name) }}')" 
+                                    class="flex-1 py-2 px-3 text-xs font-semibold rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-600/20 dark:hover:bg-indigo-600 dark:text-indigo-300 dark:hover:text-white border border-indigo-200 dark:border-indigo-500/30 transition shadow-sm flex items-center justify-center space-x-1.5">
+                                <i class="fa-solid fa-paper-plane text-[11px]"></i>
+                                <span>Terbitkan Sekarang</span>
+                            </button>
+                        @endif
+
+                        <button onclick="openChangeStatusModal({{ $sch->id }}, '{{ $sch->status }}', '{{ $sch->target_date ? $sch->target_date->translatedFormat('d M Y') : '' }}')"
+                                class="p-2 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-300 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 dark:border-gray-700 transition" 
+                                title="Ubah Status Jadwal">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                    </div>
+                </div>
+            @endforeach
+        </div>
     </div>
 
     <!-- Riwayat Log Publikasi Per Target Per Platform (Bagian 2.1 & 11) -->
@@ -331,7 +422,8 @@
         @if($project->publishLogs->isEmpty())
             <p class="text-xs text-slate-500 dark:text-gray-500 italic">Belum ada riwayat publikasi untuk campaign ini.</p>
         @else
-            <div class="overflow-x-auto">
+            <!-- ========== DESKTOP TABLE VIEW FOR PUBLISH LOGS (hidden on mobile) ========== -->
+            <div class="hidden md:block overflow-x-auto">
                 <table class="w-full text-left text-xs text-slate-700 dark:text-gray-300">
                     <thead class="bg-slate-100/90 dark:bg-gray-900/80 text-slate-600 dark:text-gray-400 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-200 dark:border-gray-800">
                         <tr>
@@ -390,6 +482,60 @@
                         @endforeach
                     </tbody>
                 </table>
+            </div>
+
+            <!-- ========== MOBILE CARD VIEW FOR PUBLISH LOGS (visible on mobile < md) ========== -->
+            <div class="block md:hidden divide-y divide-slate-200/80 dark:divide-gray-800/60">
+                @foreach($project->publishLogs as $log)
+                    <div class="py-3 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-slate-500 dark:text-gray-400 font-mono">
+                                {{ $log->executed_at ? $log->executed_at->format('d/m H:i:s') : '-' }}
+                            </span>
+                            <div>
+                                @if($log->action_status === 'success')
+                                    <span class="px-2 py-0.5 rounded-md text-[10px] uppercase font-bold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">Sukses</span>
+                                @elseif($log->action_status === 'skipped')
+                                    <span class="px-2 py-0.5 rounded-md text-[10px] uppercase font-bold bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-400 border border-slate-200 dark:border-gray-700">Skipped</span>
+                                @else
+                                    <span class="px-2 py-0.5 rounded-md text-[10px] uppercase font-bold bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800">Gagal</span>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-xs text-slate-900 dark:text-white truncate">
+                                {{ $log->connectedAccount ? $log->connectedAccount->page_name : '-' }}
+                            </span>
+                            <div class="flex items-center space-x-1.5 flex-shrink-0">
+                                @if($log->platform === 'instagram')
+                                    <span class="inline-flex items-center space-x-1 text-pink-500 dark:text-pink-400 text-xs font-semibold">
+                                        <i class="fa-brands fa-instagram text-xs"></i>
+                                        <span>IG</span>
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center space-x-1 text-blue-600 dark:text-blue-400 text-xs font-semibold">
+                                        <i class="fa-brands fa-facebook text-xs"></i>
+                                        <span>FB</span>
+                                    </span>
+                                @endif
+                                <span class="text-[10px] uppercase font-semibold text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
+                                    {{ $log->content_type }}
+                                </span>
+                            </div>
+                        </div>
+
+                        @if($log->media_id || $log->error_message)
+                            <div class="text-[11px] bg-slate-50 dark:bg-gray-900 p-2 rounded-lg border border-slate-100 dark:border-gray-800 break-words">
+                                @if($log->media_id)
+                                    <span class="text-emerald-600 dark:text-emerald-400 font-mono text-[10px]">ID: {{ $log->media_id }}</span>
+                                @elseif($log->error_message)
+                                    <span class="text-rose-600 dark:text-rose-400 text-[11px]">{{ $log->error_message }}</span>
+                                @endif
+                            </div>
+                        @endif
+                    </div>
+                @endforeach
             </div>
         @endif
     </div>

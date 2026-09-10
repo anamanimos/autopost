@@ -3,7 +3,7 @@
 @section('title', 'Antrean Posting & Monitoring')
 
 @section('content')
-<div class="space-y-6">
+<div class="space-y-6" x-data="schedulePage()">
 
     <!-- Top Action & Filter Bar -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-gray-800 pb-5">
@@ -90,7 +90,7 @@
         <span class="text-slate-500 dark:text-gray-400 text-[11px]">Menampilkan {{ $schedules->count() }} dari total {{ $schedules->total() }} jadwal</span>
     </div>
 
-    <!-- Schedules Table -->
+    <!-- Schedules Table (Desktop) & Cards (Mobile) -->
     <div class="card-dark rounded-xl border border-slate-200/90 dark:border-gray-800 overflow-hidden shadow-sm">
         @if($schedules->isEmpty())
             <div class="text-center py-12 space-y-2">
@@ -98,7 +98,8 @@
                 <p class="text-xs text-slate-500 dark:text-gray-400">Tidak ada jadwal antrean yang cocok dengan filter saat ini.</p>
             </div>
         @else
-            <div class="overflow-x-auto">
+            <!-- ========== DESKTOP TABLE VIEW (hidden on mobile) ========== -->
+            <div class="hidden md:block overflow-x-auto">
                 <table class="w-full text-left text-xs text-slate-700 dark:text-gray-300">
                     <thead class="bg-slate-100/90 dark:bg-gray-900/80 text-slate-600 dark:text-gray-400 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-200 dark:border-gray-800">
                         <tr>
@@ -115,7 +116,8 @@
                             @php
                                 $project = $sch->projectCampaign;
                             @endphp
-                            <tr class="hover:bg-slate-50/80 dark:hover:bg-gray-900/40 transition">
+                            <tr class="hover:bg-slate-50/80 dark:hover:bg-gray-900/40 transition"
+                                x-show="matchesSearch('{{ addslashes($project ? $project->name : '') }} {{ $sch->target_date->format('d M Y') }} {{ $sch->target_time }} {{ addslashes($sch->notes ?? '') }}')">
                                 <!-- Media Thumbnail -->
                                 <td class="py-3 px-4">
                                     <div class="w-11 h-11 rounded-lg bg-slate-100 dark:bg-gray-900 border border-slate-200 dark:border-gray-800 overflow-hidden flex-shrink-0 cursor-pointer hover:border-indigo-500 transition"
@@ -263,10 +265,266 @@
                 </table>
             </div>
 
+            <!-- ========== MOBILE CARD VIEW (visible only on mobile screens < md) ========== -->
+            <div class="block md:hidden divide-y divide-slate-200/80 dark:divide-gray-800/80">
+                @foreach($schedules as $sch)
+                    @php
+                        $project = $sch->projectCampaign;
+                    @endphp
+                    <div class="p-4 space-y-3" 
+                         x-show="matchesSearch('{{ addslashes($project ? $project->name : '') }} {{ $sch->target_date->format('d M Y') }} {{ $sch->target_time }} {{ addslashes($sch->notes ?? '') }}')">
+                        <!-- Top Info: Thumbnail + Details + Status -->
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex items-start space-x-3 min-w-0">
+                                <div class="w-14 h-14 rounded-xl bg-slate-100 dark:bg-gray-900 border border-slate-200 dark:border-gray-800 overflow-hidden flex-shrink-0 cursor-pointer shadow-sm"
+                                     onclick="openLightboxDirect('{{ $sch->media_url }}', false, '{{ $project ? addslashes($project->name) : 'Jadwal' }}')">
+                                    <img src="{{ $sch->media_url }}" class="w-full h-full object-cover">
+                                </div>
+                                <div class="min-w-0">
+                                    <a href="{{ $project ? route('projects.show', $project->id) : '#' }}" class="font-bold text-sm text-slate-900 dark:text-white truncate block hover:text-indigo-600 dark:hover:text-indigo-400">
+                                        {{ $project ? $project->name : 'Campaign Dihapus' }}
+                                    </a>
+                                    <div class="flex items-center space-x-1.5 mt-0.5 flex-wrap">
+                                        @if($project && $project->content_type === 'story')
+                                            <span class="text-[10px] text-pink-600 dark:text-pink-400 font-bold"><i class="fa-solid fa-circle-notch text-[8px] mr-0.5"></i>Story</span>
+                                        @else
+                                            <span class="text-[10px] text-blue-600 dark:text-blue-400 font-bold"><i class="fa-solid fa-square-rss text-[8px] mr-0.5"></i>Post</span>
+                                        @endif
+                                        <span class="text-slate-300 dark:text-gray-600">•</span>
+                                        <span class="text-[10px] text-slate-500 dark:text-gray-400 uppercase font-mono">{{ $project ? $project->repeat_type : '-' }}</span>
+                                    </div>
+                                    <div class="flex items-center space-x-1.5 text-xs text-slate-700 dark:text-gray-300 mt-1 font-semibold">
+                                        <i class="fa-regular fa-calendar text-indigo-500 text-[11px]"></i>
+                                        <span>{{ $sch->target_date->format('d M Y') }}</span>
+                                        <span class="text-slate-400 dark:text-gray-500">·</span>
+                                        <i class="fa-regular fa-clock text-indigo-500 text-[11px]"></i>
+                                        <span>{{ $sch->target_time }} WIB</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Status Badge Button -->
+                            <button type="button" onclick="openChangeStatusModal({{ $sch->id }}, '{{ $sch->status }}', '{{ $sch->target_date ? $sch->target_date->translatedFormat('d M Y') : '' }}')"
+                                    class="flex-shrink-0 cursor-pointer">
+                                @if($sch->status === 'completed')
+                                    <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-md bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400">
+                                        Selesai
+                                    </span>
+                                @elseif($sch->status === 'pending')
+                                    <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-md bg-amber-50 dark:bg-amber-950/80 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400">
+                                        Pending
+                                    </span>
+                                @elseif($sch->status === 'processing')
+                                    <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-md bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-400 animate-pulse">
+                                        Proses
+                                    </span>
+                                @elseif($sch->status === 'skipped')
+                                    <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-gray-400">
+                                        Skip
+                                    </span>
+                                @elseif($sch->status === 'partially_failed')
+                                    <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-md bg-orange-50 dark:bg-orange-950/80 border border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-400">
+                                        Parsial
+                                    </span>
+                                @else
+                                    <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-md bg-rose-50 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400">
+                                        Gagal
+                                    </span>
+                                @endif
+                            </button>
+                        </div>
+
+                        <!-- Target Accounts & Notes -->
+                        @if($project && $project->targets->count() > 0)
+                            <div class="flex flex-wrap gap-1.5 pt-1">
+                                @foreach($project->targets as $target)
+                                    @php $acc = $target->connectedAccount; @endphp
+                                    <span class="inline-flex items-center space-x-1 px-2 py-0.5 bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 rounded text-[10px]">
+                                        <span class="truncate max-w-[120px]">{{ $acc ? $acc->page_name : '-' }}</span>
+                                        @if($target->platform_target === 'both')
+                                            <span class="text-indigo-500 font-bold text-[9px]">(FB+IG)</span>
+                                        @elseif($target->platform_target === 'instagram_only')
+                                            <span class="text-pink-500 font-bold text-[9px]">(IG)</span>
+                                        @elseif($target->platform_target === 'facebook_only')
+                                            <span class="text-blue-500 font-bold text-[9px]">(FB)</span>
+                                        @endif
+                                    </span>
+                                @endforeach
+                            </div>
+                        @endif
+
+                        @if($sch->notes)
+                            <p class="text-[11px] text-slate-500 dark:text-gray-400 bg-slate-50 dark:bg-gray-900/60 p-2 rounded-lg border border-slate-200/80 dark:border-gray-800">
+                                {{ $sch->notes }}
+                            </p>
+                        @endif
+
+                        <!-- Mobile Action Buttons -->
+                        <div class="pt-2 border-t border-slate-100 dark:border-gray-800/80 flex items-center justify-between gap-2">
+                            <!-- Primary Publish / Retry Button -->
+                            @if($sch->status === 'completed')
+                                <button onclick="promptRepublishOption({{ $sch->id }}, '{{ $sch->target_date ? $sch->target_date->translatedFormat('d M Y') : '' }} {{ $sch->target_time }} WIB', '{{ $project ? addslashes($project->name) : 'Campaign' }}')" 
+                                        class="flex-1 py-2 px-3 text-xs font-semibold rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-600/20 dark:hover:bg-amber-600 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30 transition flex items-center justify-center space-x-1.5 shadow-sm">
+                                    <i class="fa-solid fa-arrows-rotate text-[11px]"></i>
+                                    <span>Terbitkan Ulang</span>
+                                </button>
+                            @elseif(in_array($sch->status, ['failed', 'partially_failed']))
+                                <button onclick="publishScheduledWithProgress({{ $sch->id }}, '{{ $sch->target_date ? $sch->target_date->translatedFormat('d M Y') : '' }} {{ $sch->target_time }} WIB', '{{ $project ? addslashes($project->name) : 'Campaign' }}')" 
+                                        class="flex-1 py-2 px-3 text-xs font-semibold rounded-lg bg-rose-600 hover:bg-rose-500 text-white transition flex items-center justify-center space-x-1.5 shadow-sm">
+                                    <i class="fa-solid fa-rotate-left text-[11px]"></i>
+                                    <span>Coba Terbitkan Lagi</span>
+                                </button>
+                            @else
+                                <button onclick="publishScheduledWithProgress({{ $sch->id }}, '{{ $sch->target_date ? $sch->target_date->translatedFormat('d M Y') : '' }} {{ $sch->target_time }} WIB', '{{ $project ? addslashes($project->name) : 'Campaign' }}')" 
+                                        class="flex-1 py-2 px-3 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition flex items-center justify-center space-x-1.5 shadow-sm">
+                                    <i class="fa-solid fa-paper-plane text-[11px]"></i>
+                                    <span>Terbitkan Sekarang</span>
+                                </button>
+                            @endif
+
+                            <!-- Secondary Actions -->
+                            <div class="flex items-center space-x-1">
+                                <button onclick="showScheduleLogModal({{ $sch->id }})" 
+                                        class="p-2 text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 dark:text-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-lg border border-slate-200 dark:border-gray-700 transition" title="Log Eksekusi">
+                                    <i class="fa-solid fa-list-check text-xs"></i>
+                                </button>
+                                <button onclick="openChangeStatusModal({{ $sch->id }}, '{{ $sch->status }}', '{{ $sch->target_date ? $sch->target_date->translatedFormat('d M Y') : '' }}')"
+                                        class="p-2 text-slate-600 hover:text-indigo-600 bg-slate-100 hover:bg-slate-200 dark:text-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-lg border border-slate-200 dark:border-gray-700 transition" title="Ubah Status">
+                                    <i class="fa-solid fa-pen-to-square text-xs"></i>
+                                </button>
+                                <button onclick="deleteSchedule({{ $sch->id }})" 
+                                        class="p-2 text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 rounded-lg border border-rose-200 dark:border-rose-800/80 transition" title="Hapus">
+                                    <i class="fa-solid fa-trash text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
             <div class="p-4 border-t border-slate-200 dark:border-gray-800">
                 {{ $schedules->links() }}
             </div>
         @endif
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- MOBILE FLOATING ACTION BUTTONS (SEARCH & FILTER)                   -->
+    <!-- Positioned above Mobile Bottom Navbar (bottom-20 right-4)         -->
+    <!-- ================================================================= -->
+    <div class="fixed bottom-20 right-4 z-40 lg:hidden flex items-center space-x-2.5" x-show="!searchOpen">
+        <!-- Floating Filter Icon (Opens Bottom Sheet Modal) -->
+        <button type="button" @click="mobileFilterOpen = true" 
+                class="w-12 h-12 rounded-full bg-slate-900/90 dark:bg-slate-800/95 border border-slate-700/80 text-white shadow-xl flex items-center justify-center transition-all duration-200 active:scale-90 relative"
+                title="Buka Filter Jadwal">
+            <i class="fa-solid fa-filter text-sm text-indigo-400"></i>
+            @if($statusFilter !== 'all' || $projectFilter)
+                <span class="absolute -top-1 -right-1 w-3 h-3 bg-indigo-600 rounded-full border-2 border-white dark:border-gray-900 shadow"></span>
+            @endif
+        </button>
+
+        <!-- Floating Search Icon (Expands to 100% Bar) -->
+        <button type="button" @click="searchOpen = true; $nextTick(() => $refs.scheduleSearchInput.focus())" 
+                class="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 text-white shadow-xl flex items-center justify-center transition-all duration-300 active:scale-90"
+                title="Cari Jadwal">
+            <i class="fa-solid fa-magnifying-glass text-sm"></i>
+        </button>
+    </div>
+
+    <!-- EXPANDABLE 100% SEARCH BAR (Mobile Full Width on Click) -->
+    <div x-show="searchOpen" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-y-6 scale-95"
+         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+         x-transition:leave-end="opacity-0 translate-y-6 scale-95"
+         class="fixed bottom-20 inset-x-3 z-40 lg:hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl p-2 rounded-2xl shadow-2xl border border-indigo-500/50 flex items-center space-x-2">
+        <div class="p-2 text-indigo-600 dark:text-indigo-400">
+            <i class="fa-solid fa-magnifying-glass text-sm"></i>
+        </div>
+        <input type="text" x-ref="scheduleSearchInput" x-model="searchQuery" 
+               placeholder="Cari nama campaign, tanggal, atau catatan..." 
+               class="flex-1 bg-transparent text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none py-1.5 font-medium">
+        <button type="button" x-show="searchQuery" @click="searchQuery = ''" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-gray-300 text-xs">
+            <i class="fa-solid fa-circle-xmark"></i>
+        </button>
+        <button type="button" @click="searchOpen = false" class="px-3 py-1.5 bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 rounded-lg text-xs font-semibold hover:bg-slate-200 dark:hover:bg-gray-700">
+            Tutup
+        </button>
+    </div>
+
+    <!-- MOBILE FILTER BOTTOM SHEET MODAL -->
+    <div x-show="mobileFilterOpen" class="fixed inset-0 z-50 lg:hidden flex items-end justify-center" style="display: none;">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm" @click="mobileFilterOpen = false"
+             x-transition:enter="transition-opacity ease-linear duration-300"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition-opacity ease-linear duration-300"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"></div>
+
+        <!-- Dialog Sheet -->
+        <div class="relative w-full max-h-[85vh] bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-gray-800 rounded-t-2xl shadow-2xl overflow-y-auto p-5 space-y-5 z-10"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="translate-y-full"
+             x-transition:enter-end="translate-y-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="translate-y-0"
+             x-transition:leave-end="translate-y-full">
+            
+            <!-- Drag Handle Bar -->
+            <div class="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-gray-700 mx-auto -mt-1"></div>
+
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-gray-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <div class="p-1.5 bg-indigo-50 dark:bg-indigo-950/80 rounded-lg text-indigo-600 dark:text-indigo-400">
+                        <i class="fa-solid fa-filter text-xs"></i>
+                    </div>
+                    <h3 class="font-bold text-sm text-slate-900 dark:text-white">Filter Antrean Jadwal</h3>
+                </div>
+                <button type="button" @click="mobileFilterOpen = false" class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white text-base">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form action="{{ route('schedules.index') }}" method="GET" class="space-y-4">
+                <!-- Status Filter -->
+                <div class="space-y-1.5">
+                    <label class="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider block">Status Jadwal</label>
+                    <select name="status" class="w-full bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl p-3 text-xs text-slate-800 dark:text-white focus:outline-none focus:border-indigo-500">
+                        <option value="all" {{ $statusFilter === 'all' ? 'selected' : '' }}>Semua Status</option>
+                        <option value="pending" {{ $statusFilter === 'pending' ? 'selected' : '' }}>Pending (Menunggu Tayang)</option>
+                        <option value="completed" {{ $statusFilter === 'completed' ? 'selected' : '' }}>Selesai (Sudah Terbit)</option>
+                        <option value="failed_all" {{ $statusFilter === 'failed_all' ? 'selected' : '' }}>Gagal / Parsial</option>
+                    </select>
+                </div>
+
+                <!-- Project Campaign Filter -->
+                <div class="space-y-1.5">
+                    <label class="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider block">Project Campaign</label>
+                    <select name="project_id" class="w-full bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl p-3 text-xs text-slate-800 dark:text-white focus:outline-none focus:border-indigo-500">
+                        <option value="">Semua Campaign</option>
+                        @foreach($projects as $proj)
+                            <option value="{{ $proj->id }}" {{ $projectFilter == $proj->id ? 'selected' : '' }}>{{ $proj->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Buttons -->
+                <div class="pt-3 border-t border-slate-200 dark:border-gray-800 flex items-center space-x-2">
+                    <a href="{{ route('schedules.index') }}" 
+                       class="flex-1 py-2.5 px-4 rounded-xl border border-slate-300 dark:border-gray-700 text-slate-700 dark:text-gray-300 font-semibold text-xs text-center hover:bg-slate-100 dark:hover:bg-gray-800 transition">
+                        Reset Filter
+                    </a>
+                    <button type="submit" 
+                            class="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-md transition text-center">
+                        Terapkan Filter
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
 </div>
@@ -297,6 +555,18 @@
 
 @section('scripts')
 <script>
+    function schedulePage() {
+        return {
+            searchOpen: false,
+            searchQuery: '',
+            mobileFilterOpen: false,
+            matchesSearch(text) {
+                if (!this.searchQuery || this.searchQuery.trim() === '') return true;
+                return text.toLowerCase().includes(this.searchQuery.trim().toLowerCase());
+            }
+        };
+    }
+
     function showScheduleLogModal(id) {
         document.getElementById('scheduleLogModal').classList.remove('hidden');
         document.getElementById('logModalContent').innerHTML = '<p class="text-xs text-gray-400 italic">Memuat data log...</p>';

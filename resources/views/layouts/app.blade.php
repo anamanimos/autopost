@@ -476,12 +476,17 @@
                 <div class="flex items-center justify-between h-16">
                     
                     <!-- Left: Mobile Menu Trigger & Context Title -->
-                    <div class="flex items-center space-x-3">
+                    <div class="flex items-center space-x-2.5">
                         <button @click="sidebarOpen = true" 
                                 class="lg:hidden p-2 rounded-lg border border-slate-300/80 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-                                title="Buka Menu">
+                                title="Buka Menu Sidebar">
                             <i class="fa-solid fa-bars text-sm"></i>
                         </button>
+
+                        <a href="{{ route('projects.index') }}" class="lg:hidden flex items-center space-x-2">
+                            <img src="{{ asset('favicon.png') }}" class="w-7 h-7 rounded-lg object-cover shadow-sm">
+                            <span class="font-bold text-xs text-slate-900 dark:text-white tracking-tight">Meta Scheduler</span>
+                        </a>
                         
                         <div class="hidden sm:flex items-center space-x-2 text-xs text-slate-500 dark:text-gray-400">
                             <i class="fa-brands fa-meta text-indigo-500"></i>
@@ -595,8 +600,8 @@
             </div>
         </header>
 
-        <!-- Main Content Area (100% Full Width) -->
-        <main class="flex-grow w-full px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Main Content Area (100% Full Width with Safe Bottom Padding for Mobile Navbar) -->
+        <main class="flex-grow w-full px-3.5 sm:px-6 lg:px-8 py-4 sm:py-6 pb-28 lg:pb-8">
             @if(session('success'))
                 <div class="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs flex items-center justify-between backdrop-blur-md">
                     <div class="flex items-center space-x-2">
@@ -630,10 +635,77 @@
             @yield('content')
         </main>
 
-        <!-- Global Footer -->
-        <footer class="glass-nav border-t py-4 text-center text-xs text-slate-500 dark:text-slate-400">
+        <!-- Global Footer (Desktop visible, extra spacing on mobile) -->
+        <footer class="glass-nav border-t py-4 text-center text-xs text-slate-500 dark:text-slate-400 hidden lg:block">
             <p>&copy; {{ date('Y') }} Meta Content Scheduler — Official Meta Graph API (Instagram & Facebook Page)</p>
         </footer>
+
+        <!-- Mobile Bottom Navigation Bar (Fixed at bottom for mobile screens < lg) -->
+        <nav class="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200/90 dark:border-gray-800/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.35)] transition-colors duration-300">
+            <div class="grid {{ auth()->user()->isAdmin() ? 'grid-cols-5' : 'grid-cols-4' }} h-16 max-w-lg mx-auto px-1">
+                <!-- Tab 1: Campaigns -->
+                <a href="{{ route('projects.index') }}" 
+                   class="flex flex-col items-center justify-center py-1 group transition relative {{ request()->routeIs('projects.*') ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-slate-200' }}">
+                    <div class="relative">
+                        <i class="fa-solid fa-layer-group text-base transition-transform group-active:scale-90"></i>
+                        @if(request()->routeIs('projects.*'))
+                            <span class="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>
+                        @endif
+                    </div>
+                    <span class="text-[10px] mt-1 font-medium tracking-tight">Campaign</span>
+                </a>
+
+                <!-- Tab 2: Antrean Posting -->
+                <a href="{{ route('schedules.index') }}" 
+                   class="flex flex-col items-center justify-center py-1 group transition relative {{ request()->routeIs('schedules.*') ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-slate-200' }}">
+                    <div class="relative">
+                        <i class="fa-solid fa-calendar-check text-base transition-transform group-active:scale-90"></i>
+                        @if(request()->routeIs('schedules.*'))
+                            <span class="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>
+                        @endif
+                    </div>
+                    <span class="text-[10px] mt-1 font-medium tracking-tight">Antrean</span>
+                </a>
+
+                <!-- Tab 3: Integrasi Meta API -->
+                <a href="{{ route('meta.index') }}" 
+                   class="flex flex-col items-center justify-center py-1 group transition relative {{ request()->routeIs('meta.*') ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-slate-200' }}">
+                    <div class="relative">
+                        <i class="fa-brands fa-meta text-base transition-transform group-active:scale-90"></i>
+                        @if(request()->routeIs('meta.*'))
+                            <span class="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>
+                        @endif
+                    </div>
+                    <span class="text-[10px] mt-1 font-medium tracking-tight">Meta API</span>
+                </a>
+
+                <!-- Tab 4: Manajemen User (Admin Only) -->
+                @if(auth()->user()->isAdmin())
+                <a href="{{ route('users.index') }}" 
+                   class="flex flex-col items-center justify-center py-1 group transition relative {{ request()->routeIs('users.*') ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-slate-200' }}">
+                    <div class="relative">
+                        <i class="fa-solid fa-users text-base transition-transform group-active:scale-90"></i>
+                        @if(request()->routeIs('users.*'))
+                            <span class="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>
+                        @endif
+                    </div>
+                    <span class="text-[10px] mt-1 font-medium tracking-tight">Users</span>
+                </a>
+                @endif
+
+                <!-- Tab 5: Profil Saya -->
+                <a href="{{ route('profile') }}" 
+                   class="flex flex-col items-center justify-center py-1 group transition relative {{ request()->routeIs('profile*') ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-slate-200' }}">
+                    <div class="relative">
+                        <i class="fa-solid fa-user-circle text-base transition-transform group-active:scale-90"></i>
+                        @if(request()->routeIs('profile*'))
+                            <span class="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>
+                        @endif
+                    </div>
+                    <span class="text-[10px] mt-1 font-medium tracking-tight">Profil</span>
+                </a>
+            </div>
+        </nav>
     </div>
     @else
     <!-- Guest Layout (Login Page) -->

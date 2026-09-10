@@ -44,7 +44,7 @@
     </div>
 
     <!-- Tab Navigasi Utama (Tepat di bawah Header Integrasi Meta API) -->
-    <div class="flex items-center space-x-2 border-b border-slate-200 dark:border-gray-800 text-xs font-semibold">
+    <div class="flex items-center space-x-2 border-b border-slate-200 dark:border-gray-800 text-xs font-semibold overflow-x-auto whitespace-nowrap scrollbar-none pb-0.5">
         <button type="button" @click="currentTab = 'connect'"
                 :class="currentTab === 'connect' ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-500 bg-slate-100/70 dark:bg-gray-900/50' : 'text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/50 dark:hover:bg-gray-900/30'"
                 class="px-4 py-3 rounded-t-lg transition flex items-center space-x-2">

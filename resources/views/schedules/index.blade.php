@@ -86,14 +86,24 @@
          x-transition:leave-end="opacity-0 -translate-y-2" 
          class="hidden sm:block bg-slate-50/80 dark:bg-gray-900/60 border border-slate-200 dark:border-gray-800 rounded-xl p-4 space-y-4">
         
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <span class="text-xs font-bold text-slate-700 dark:text-gray-300 uppercase tracking-wider flex items-center space-x-1.5">
                 <i class="fa-solid fa-filter text-indigo-500 text-[11px]"></i>
                 <span>Filter Antrean Jadwal</span>
             </span>
-            <button @click="clearAllFilters()" x-show="hasActiveFilters" class="text-[11px] text-rose-600 dark:text-rose-400 hover:underline font-medium">
-                <i class="fa-solid fa-xmark mr-0.5"></i> Hapus Semua Filter
-            </button>
+            <div class="flex items-center space-x-3">
+                <div class="relative w-64">
+                    <input type="text" x-model="searchQuery" @input="updateFilteredCount()" placeholder="Cari campaign, tanggal, catatan..." 
+                           class="w-full pl-8 pr-7 py-1.5 text-xs bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg text-slate-700 dark:text-gray-200 focus:outline-none focus:border-indigo-500">
+                    <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-[11px]"></i>
+                    <button type="button" x-show="searchQuery" @click="searchQuery = ''; updateFilteredCount()" class="absolute right-2.5 top-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-gray-200 text-xs">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </button>
+                </div>
+                <button type="button" @click="clearAllFilters()" x-show="hasActiveFilters || searchQuery" class="text-[11px] text-rose-600 dark:text-rose-400 hover:underline font-medium whitespace-nowrap">
+                    <i class="fa-solid fa-xmark mr-0.5"></i> Hapus Filter
+                </button>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -225,6 +235,15 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200/80 dark:divide-gray-800/60">
+                        <tr x-show="filteredCount === 0" style="display: none;">
+                            <td colspan="6" class="py-12 text-center text-slate-400 dark:text-gray-500">
+                                <i class="fa-solid fa-filter-circle-xmark text-3xl mb-2 block"></i>
+                                <p class="text-sm font-medium">Tidak ada antrean yang cocok dengan filter yang dipilih.</p>
+                                <button type="button" @click="clearAllFilters()" class="mt-2 text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline">
+                                    Reset Filter
+                                </button>
+                            </td>
+                        </tr>
                         @foreach($schedules as $sch)
                             @php
                                 $project = $sch->projectCampaign;
@@ -233,10 +252,16 @@
                                 $platformList = $project ? $project->targets->pluck('platform_target')->unique()->toArray() : [];
                                 $accountList = $project ? $project->targets->pluck('connected_account_id')->unique()->toArray() : [];
                                 $projId = $sch->project_campaign_id;
-                                $searchString = addslashes(($project ? $project->name : '') . ' ' . ($sch->target_date ? $sch->target_date->format('d M Y') : '') . ' ' . $sch->target_time . ' ' . ($sch->notes ?? ''));
+                                $searchString = ($project ? $project->name : '') . ' ' . ($sch->target_date ? $sch->target_date->format('d M Y') : '') . ' ' . $sch->target_time . ' ' . ($sch->notes ?? '');
                             @endphp
-                            <tr class="hover:bg-slate-50/80 dark:hover:bg-gray-900/40 transition"
-                                x-show="isVisible('{{ $schStatus }}', '{{ $contentType }}', {!! json_encode($platformList) !!}, {!! json_encode($accountList) !!}, {{ $projId ?? 'null' }}, '{{ $searchString }}')">
+                            <tr class="hover:bg-slate-50/80 dark:hover:bg-gray-900/40 transition schedule-row"
+                                data-status="{{ $schStatus }}"
+                                data-content-type="{{ $contentType }}"
+                                data-platforms="{{ implode(',', $platformList) }}"
+                                data-accounts="{{ implode(',', $accountList) }}"
+                                data-project-id="{{ $projId ?? '' }}"
+                                data-search="{{ strtolower($searchString) }}"
+                                x-show="isRowVisible($el)">
                                 <!-- Media Thumbnail -->
                                 <td class="py-3 px-4">
                                     <div class="w-11 h-11 rounded-lg bg-slate-100 dark:bg-gray-900 border border-slate-200 dark:border-gray-800 overflow-hidden flex-shrink-0 cursor-pointer hover:border-indigo-500 transition"
@@ -386,6 +411,13 @@
 
             <!-- ========== MOBILE CARD VIEW (visible only on mobile screens < md) ========== -->
             <div class="block md:hidden divide-y divide-slate-200/80 dark:divide-gray-800/80">
+                <div x-show="filteredCount === 0" class="p-8 text-center text-slate-400 dark:text-gray-500" style="display: none;">
+                    <i class="fa-solid fa-filter-circle-xmark text-3xl mb-2 block"></i>
+                    <p class="text-sm font-medium">Tidak ada antrean yang cocok dengan filter yang dipilih.</p>
+                    <button type="button" @click="clearAllFilters()" class="mt-2 text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline">
+                        Reset Filter
+                    </button>
+                </div>
                 @foreach($schedules as $sch)
                     @php
                         $project = $sch->projectCampaign;
@@ -394,10 +426,16 @@
                         $platformList = $project ? $project->targets->pluck('platform_target')->unique()->toArray() : [];
                         $accountList = $project ? $project->targets->pluck('connected_account_id')->unique()->toArray() : [];
                         $projId = $sch->project_campaign_id;
-                        $searchString = addslashes(($project ? $project->name : '') . ' ' . ($sch->target_date ? $sch->target_date->format('d M Y') : '') . ' ' . $sch->target_time . ' ' . ($sch->notes ?? ''));
+                        $searchString = ($project ? $project->name : '') . ' ' . ($sch->target_date ? $sch->target_date->format('d M Y') : '') . ' ' . $sch->target_time . ' ' . ($sch->notes ?? '');
                     @endphp
-                    <div class="p-4 space-y-3" 
-                         x-show="isVisible('{{ $schStatus }}', '{{ $contentType }}', {!! json_encode($platformList) !!}, {!! json_encode($accountList) !!}, {{ $projId ?? 'null' }}, '{{ $searchString }}')">
+                    <div class="p-4 space-y-3 schedule-card" 
+                         data-status="{{ $schStatus }}"
+                         data-content-type="{{ $contentType }}"
+                         data-platforms="{{ implode(',', $platformList) }}"
+                         data-accounts="{{ implode(',', $accountList) }}"
+                         data-project-id="{{ $projId ?? '' }}"
+                         data-search="{{ strtolower($searchString) }}"
+                         x-show="isRowVisible($el)">
                         <!-- Top Info: Thumbnail + Details + Status -->
                         <div class="flex items-start justify-between gap-3">
                             <div class="flex items-start space-x-3 min-w-0">
@@ -568,7 +606,7 @@
         <div class="p-2 text-indigo-600 dark:text-indigo-400">
             <i class="fa-solid fa-magnifying-glass text-sm"></i>
         </div>
-        <input type="text" x-ref="scheduleSearchInput" x-model="searchQuery" 
+        <input type="text" x-ref="scheduleSearchInput" x-model="searchQuery" @input="updateFilteredCount()"
                placeholder="Cari nama campaign, tanggal, atau catatan..." 
                class="flex-1 bg-transparent text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none py-1.5 font-medium">
         <button type="button" x-show="searchQuery" @click="searchQuery = ''; updateFilteredCount()" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-gray-300 text-xs">
@@ -746,10 +784,16 @@
                 accounts: [],
                 platforms: [],
                 statuses: [
-                    @if($statusFilter !== 'all') '{{ $statusFilter === "failed_all" ? "failed" : $statusFilter }}' @endif
+                    @if($statusFilter === 'failed_all')
+                        'failed', 'partially_failed'
+                    @elseif($statusFilter !== 'all')
+                        '{{ $statusFilter }}'
+                    @endif
                 ],
                 contentTypes: [],
             },
+
+            filterVersion: 0,
 
             projectOptions: [
                 @foreach($projects as $proj)
@@ -791,15 +835,25 @@
                 } else {
                     this.filters[group].push(value);
                 }
+                this.filterVersion++;
                 this.updateFilteredCount();
             },
 
             setSingleFilter(group, value) {
-                if (this.filters[group].includes(value)) {
-                    this.filters[group] = [];
+                if (group === 'statuses' && value === 'failed') {
+                    if (this.filters.statuses.includes('failed') && this.filters.statuses.includes('partially_failed')) {
+                        this.filters.statuses = [];
+                    } else {
+                        this.filters.statuses = ['failed', 'partially_failed'];
+                    }
                 } else {
-                    this.filters[group] = [value];
+                    if (this.filters[group].includes(value)) {
+                        this.filters[group] = [];
+                    } else {
+                        this.filters[group] = [value];
+                    }
                 }
+                this.filterVersion++;
                 this.updateFilteredCount();
             },
 
@@ -808,6 +862,7 @@
                 if (idx > -1) {
                     this.filters[group].splice(idx, 1);
                 }
+                this.filterVersion++;
                 this.updateFilteredCount();
             },
 
@@ -818,6 +873,7 @@
                 this.filters.statuses = [];
                 this.filters.contentTypes = [];
                 this.searchQuery = '';
+                this.filterVersion++;
                 this.updateFilteredCount();
             },
 
@@ -866,28 +922,38 @@
 
             updateFilteredCount() {
                 this.$nextTick(() => {
-                    let count = 0;
-                    @foreach($schedules as $sch)
-                        @php
-                            $project = $sch->projectCampaign;
-                            $schStatus = $sch->status;
-                            $contentType = $project ? $project->content_type : '';
-                            $platformList = $project ? $project->targets->pluck('platform_target')->unique()->toArray() : [];
-                            $accountList = $project ? $project->targets->pluck('connected_account_id')->unique()->toArray() : [];
-                            $projId = $sch->project_campaign_id;
-                            $searchString = addslashes(($project ? $project->name : '') . ' ' . ($sch->target_date ? $sch->target_date->format('d M Y') : '') . ' ' . $sch->target_time . ' ' . ($sch->notes ?? ''));
-                        @endphp
-                        if (this.isVisible('{{ $schStatus }}', '{{ $contentType }}', {!! json_encode($platformList) !!}, {!! json_encode($accountList) !!}, {{ $projId ?? 'null' }}, '{{ $searchString }}')) count++;
-                    @endforeach
-                    this.filteredCount = count;
+                    const rows = document.querySelectorAll('tbody tr.schedule-row');
+                    if (rows && rows.length > 0) {
+                        let count = 0;
+                        rows.forEach(r => {
+                            if (this.isRowVisible(r)) count++;
+                        });
+                        this.filteredCount = count;
+                    } else {
+                        const cards = document.querySelectorAll('.schedule-card');
+                        let count = 0;
+                        cards.forEach(c => {
+                            if (this.isRowVisible(c)) count++;
+                        });
+                        this.filteredCount = count;
+                    }
                 });
             },
 
-            isVisible(status, contentType, platforms, accountIds, projectId, searchText) {
+            isRowVisible(el) {
+                if (!el || !el.dataset) return true;
+                const _v = this.filterVersion;
+                const status = el.dataset.status || '';
+                const contentType = el.dataset.contentType || '';
+                const platforms = el.dataset.platforms ? el.dataset.platforms.split(',').filter(Boolean) : [];
+                const accountIds = el.dataset.accounts ? el.dataset.accounts.split(',').filter(Boolean) : [];
+                const projectId = el.dataset.projectId || '';
+                const searchText = (el.dataset.search || '').toLowerCase();
+
                 // Search query filter
                 if (this.searchQuery && this.searchQuery.trim() !== '') {
                     const q = this.searchQuery.trim().toLowerCase();
-                    if (!searchText.toLowerCase().includes(q)) return false;
+                    if (!searchText.includes(q)) return false;
                 }
                 // Project filter
                 if (this.filters.projects.length > 0) {
@@ -895,7 +961,7 @@
                 }
                 // Account filter
                 if (this.filters.accounts.length > 0) {
-                    const hasMatch = accountIds && accountIds.map(String).some(id => this.filters.accounts.map(String).includes(id));
+                    const hasMatch = accountIds.some(id => this.filters.accounts.map(String).includes(String(id)));
                     if (!hasMatch) return false;
                 }
                 // Status filter
@@ -908,7 +974,40 @@
                 }
                 // Platform filter
                 if (this.filters.platforms.length > 0) {
-                    const hasMatch = platforms && platforms.some(p => this.filters.platforms.includes(p));
+                    const hasMatch = platforms.some(p => {
+                        if (this.filters.platforms.includes(p)) return true;
+                        if (p === 'both' && (this.filters.platforms.includes('facebook_only') || this.filters.platforms.includes('instagram_only'))) return true;
+                        return false;
+                    });
+                    if (!hasMatch) return false;
+                }
+                return true;
+            },
+
+            isVisible(status, contentType, platforms, accountIds, projectId, searchText) {
+                if (this.searchQuery && this.searchQuery.trim() !== '') {
+                    const q = this.searchQuery.trim().toLowerCase();
+                    if (!searchText.toLowerCase().includes(q)) return false;
+                }
+                if (this.filters.projects.length > 0) {
+                    if (!projectId || !this.filters.projects.map(String).includes(String(projectId))) return false;
+                }
+                if (this.filters.accounts.length > 0) {
+                    const hasMatch = accountIds && accountIds.map(String).some(id => this.filters.accounts.map(String).includes(id));
+                    if (!hasMatch) return false;
+                }
+                if (this.filters.statuses.length > 0) {
+                    if (!this.filters.statuses.includes(status)) return false;
+                }
+                if (this.filters.contentTypes.length > 0) {
+                    if (!this.filters.contentTypes.includes(contentType)) return false;
+                }
+                if (this.filters.platforms.length > 0) {
+                    const hasMatch = platforms && platforms.some(p => {
+                        if (this.filters.platforms.includes(p)) return true;
+                        if (p === 'both' && (this.filters.platforms.includes('facebook_only') || this.filters.platforms.includes('instagram_only'))) return true;
+                        return false;
+                    });
                     if (!hasMatch) return false;
                 }
                 return true;

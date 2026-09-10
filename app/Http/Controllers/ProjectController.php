@@ -10,6 +10,7 @@ use App\Models\ProjectCampaign;
 use App\Models\Schedule;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class ProjectController extends Controller
 {
@@ -365,8 +366,10 @@ class ProjectController extends Controller
 
     protected function handleMediaUploads(array $files): array
     {
+        $mediaDisk = config('filesystems.media_disk', env('MEDIA_DISK', 'local'));
         $destinationDir = public_path('storage/uploads');
-        if (!file_exists($destinationDir)) {
+
+        if ($mediaDisk === 'local' && !file_exists($destinationDir)) {
             mkdir($destinationDir, 0777, true);
         }
 
@@ -374,33 +377,36 @@ class ProjectController extends Controller
 
         foreach ($files as $file) {
             if ($file->isValid()) {
-                $fileName = time() . '_' . rand(100, 999) . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
-                $file->move($destinationDir, $fileName);
-                $savedFilePath = $destinationDir . '/' . $fileName;
-                $filePublicUrl = '/storage/uploads/' . $fileName;
+                $fileHash = hash_file('sha256', $file->getRealPath());
+                $existing = MediaFile::where('file_hash', $fileHash)->first();
 
-                if (file_exists($savedFilePath)) {
-                    $fileHash = hash_file('sha256', $savedFilePath);
-                    $existing = MediaFile::where('file_hash', $fileHash)->first();
-
-                    if ($existing) {
-                        $uploadedIds[] = $existing->id;
-                        @unlink($savedFilePath); // Hapus duplikat
-                    } else {
-                        $mime = $file->getClientMimeType();
-                        $mediaType = (str_starts_with($mime, 'video/')) ? 'video' : 'image';
-
-                        $media = MediaFile::create([
-                            'original_name' => $file->getClientOriginalName(),
-                            'file_path' => $filePublicUrl,
-                            'file_hash' => $fileHash,
-                            'mime_type' => $mime,
-                            'file_size' => filesize($savedFilePath),
-                            'media_type' => $mediaType,
-                        ]);
-                        $uploadedIds[] = $media->id;
-                    }
+                if ($existing) {
+                    $uploadedIds[] = $existing->id;
+                    continue;
                 }
+
+                $fileName = time() . '_' . rand(100, 999) . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+                $mime = $file->getClientMimeType() ?: $file->getMimeType();
+                $fileSize = $file->getSize();
+                $mediaType = (str_starts_with($mime, 'video/')) ? 'video' : 'image';
+
+                if ($mediaDisk === 'r2') {
+                    $storedPath = Storage::disk('r2')->putFileAs('uploads', $file, $fileName, ['visibility' => 'public']);
+                    $filePath = $storedPath ?: ('uploads/' . $fileName);
+                } else {
+                    $file->move($destinationDir, $fileName);
+                    $filePath = '/storage/uploads/' . $fileName;
+                }
+
+                $media = MediaFile::create([
+                    'original_name' => $file->getClientOriginalName(),
+                    'file_path' => $filePath,
+                    'file_hash' => $fileHash,
+                    'mime_type' => $mime,
+                    'file_size' => $fileSize,
+                    'media_type' => $mediaType,
+                ]);
+                $uploadedIds[] = $media->id;
             }
         }
 

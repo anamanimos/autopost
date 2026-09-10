@@ -32,6 +32,21 @@ class MediaFile extends Model
     public function getUrlAttribute(): string
     {
         if (empty($this->file_path)) return '';
+
+        if (str_starts_with($this->file_path, 'http://') || str_starts_with($this->file_path, 'https://')) {
+            return $this->file_path;
+        }
+
+        $mediaDisk = config('filesystems.media_disk', env('MEDIA_DISK', 'local'));
+        if ($mediaDisk === 'r2') {
+            $cleanPath = ltrim(str_replace('/storage/', '', $this->file_path), '/');
+            $r2Url = config('filesystems.disks.r2.url');
+            if (!empty($r2Url)) {
+                return rtrim($r2Url, '/') . '/' . $cleanPath;
+            }
+            return \Illuminate\Support\Facades\Storage::disk('r2')->url($cleanPath);
+        }
+
         $path = parse_url($this->file_path, PHP_URL_PATH) ?? $this->file_path;
         return asset($path);
     }

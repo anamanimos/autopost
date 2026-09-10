@@ -25,6 +25,12 @@
         </div>
 
         <div class="flex items-center space-x-2">
+            <button onclick="duplicateProject({{ $project->id }}, '{{ addslashes($project->name) }}')"
+                    class="px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 dark:border-gray-700 transition flex items-center space-x-1.5 shadow-sm"
+                    title="Duplikat seluruh konfigurasi & media campaign ini ke project baru">
+                <i class="fa-solid fa-copy text-indigo-600 dark:text-indigo-400"></i>
+                <span>Duplikat</span>
+            </button>
             <a href="{{ route('projects.edit', $project->id) }}" 
                class="px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 dark:border-gray-700 transition flex items-center space-x-1.5 shadow-sm">
                 <i class="fa-solid fa-pen"></i>
@@ -966,6 +972,53 @@
                     if (data.success) {
                         showAlert('success', 'Terhapus', data.message);
                         setTimeout(() => window.location.reload(), 1000);
+                    } else {
+                        showAlert('error', 'Gagal', data.message);
+                    }
+                })
+                .catch(err => {
+                    showAlert('error', 'Error', err.message);
+                });
+            }
+        });
+    }
+
+    function duplicateProject(id, name) {
+        Swal.fire({
+            title: `Duplikat Project?`,
+            text: `Project baru akan dibuat sebagai salinan dari '${name}' lengkap beserta target akun dan media pool-nya.`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#4f46e5',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: '<i class="fa-solid fa-copy mr-1"></i> Ya, Duplikat Project',
+            cancelButtonText: 'Batal',
+            customClass: {
+                popup: 'swal2-popup-dark',
+                title: 'swal2-title-dark',
+                htmlContainer: 'swal2-html-dark'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                showLoading('Menduplikat...', 'Menyalin konfigurasi, target akun, dan media...');
+                fetch(`/projects/${id}/duplicate`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert('success', 'Berhasil Diduplikat!', data.message);
+                        setTimeout(() => {
+                            if (data.redirect) {
+                                window.location.href = data.redirect;
+                            } else {
+                                window.location.reload();
+                            }
+                        }, 1000);
                     } else {
                         showAlert('error', 'Gagal', data.message);
                     }

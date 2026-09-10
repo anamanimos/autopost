@@ -327,6 +327,78 @@ class ProjectController extends Controller
         return redirect()->route('projects.index')->with('success', $msg);
     }
 
+    public function duplicate(Request $request, $id)
+    {
+        try {
+            $project = ProjectCampaign::with(['targets', 'mediaFiles'])->findOrFail($id);
+
+            // Tentukan nama unik untuk salinan
+            $baseName = preg_replace('/ \(Salinan( \d+)?\)$/i', '', $project->name);
+            $similarCount = ProjectCampaign::where('name', 'LIKE', $baseName . ' (Salinan%')->count();
+            $copyName = $similarCount > 0
+                ? $baseName . ' (Salinan ' . ($similarCount + 1) . ')'
+                : $baseName . ' (Salinan)';
+
+            // Duplikat data project
+            $newProject = ProjectCampaign::create([
+                'name' => $copyName,
+                'content_type' => $project->content_type,
+                'caption' => $project->caption,
+                'target_time' => $project->target_time,
+                'images_per_post' => $project->images_per_post,
+                'repeat_type' => $project->repeat_type,
+                'start_date' => $project->start_date ? Carbon::parse($project->start_date) : Carbon::today(),
+                'end_date' => $project->end_date ? Carbon::parse($project->end_date) : null,
+                'exclude_days' => $project->exclude_days,
+                'is_continuous' => $project->is_continuous,
+                'status' => 'paused', // Diset 'paused' agar user dapat mereview sebelum jadwal aktif
+            ]);
+
+            // Duplikat target akun
+            foreach ($project->targets as $target) {
+                CampaignTarget::create([
+                    'project_campaign_id' => $newProject->id,
+                    'connected_account_id' => $target->connected_account_id,
+                    'platform_target' => $target->platform_target,
+                ]);
+            }
+
+            // Duplikat relasi media pool
+            if ($project->mediaFiles->isNotEmpty()) {
+                $mediaSync = [];
+                foreach ($project->mediaFiles as $media) {
+                    $mediaSync[$media->id] = ['sort_order' => $media->pivot->sort_order ?? 0];
+                }
+                $newProject->mediaFiles()->attach($mediaSync);
+            }
+
+            // Generate antrean jadwal awal untuk project baru
+            $this->seedInitialBuffer($newProject);
+
+            $msg = "Project '{$project->name}' berhasil diduplikat menjadi '{$newProject->name}'! Status awal diatur ke DIJEDA (PAUSED) agar dapat Anda tinjau terlebih dahulu.";
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $msg,
+                    'redirect' => route('projects.show', $newProject->id),
+                    'new_project_id' => $newProject->id,
+                ]);
+            }
+
+            return redirect()->route('projects.show', $newProject->id)->with('success', $msg);
+
+        } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal menduplikat project: ' . $e->getMessage(),
+                ], 500);
+            }
+            return redirect()->back()->with('error', 'Gagal menduplikat project: ' . $e->getMessage());
+        }
+    }
+
     protected function handleMediaUploads(array $files): array
     {
         $destinationDir = public_path('storage/uploads');

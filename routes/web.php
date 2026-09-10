@@ -38,6 +38,7 @@ Route::middleware('auth')->group(function () {
     Route::post('projects/{id}/add-media', [ProjectController::class, 'addMedia'])->name('projects.addMedia');
     Route::post('projects/{id}/schedules', [ProjectController::class, 'addSchedule'])->name('projects.addSchedule');
     Route::post('projects/{id}/schedules/sync', [ProjectController::class, 'syncBuffer'])->name('projects.syncBuffer');
+    Route::post('projects/{id}/duplicate', [ProjectController::class, 'duplicate'])->name('projects.duplicate');
 
     // Schedules & Monitoring Routes
     Route::get('schedules', [ScheduleController::class, 'index'])->name('schedules.index');

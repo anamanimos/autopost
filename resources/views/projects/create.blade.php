@@ -383,8 +383,8 @@
     let selectedFiles = [];
     let existingMedia = {!! json_encode($existingMediaData) !!};
 
-    let lightboxItems = [];
-    let currentLightboxIdx = 0;
+    lightboxItems = [];
+    currentLightboxIdx = 0;
 
     // Dropzone & Media Handling
     const dropzone = document.getElementById('dropzone');

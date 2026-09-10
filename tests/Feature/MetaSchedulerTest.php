@@ -622,35 +622,58 @@ class MetaSchedulerTest extends TestCase
         ]);
         $project->mediaFiles()->attach($media->id, ['sort_order' => 1]);
 
-        $response = $this->postJson(route('projects.duplicate', $project->id));
-        $response->assertStatus(200);
-        $response->assertJson(['success' => true]);
+        // 1. Endpoint duplicate meredirect ke create dengan query duplicate_from
+        $responseRedirect = $this->get(route('projects.duplicate', $project->id));
+        $responseRedirect->assertRedirect(route('projects.create', ['duplicate_from' => $project->id]));
 
-        // Pastikan project baru terbuat dengan nama Original Campaign (Salinan)
+        // 2. Buka halaman create dengan parameter duplicate_from
+        $responsePage = $this->get(route('projects.create', ['duplicate_from' => $project->id]));
+        $responsePage->assertStatus(200);
+        $responsePage->assertSee('Original Campaign (Salinan)');
+        $responsePage->assertSee('Original Caption');
+        $responsePage->assertSee('Mode Duplikasi Campaign (Belum Disimpan)');
+
+        // Pastikan belum ada project baru tersimpan di database sebelum user klik simpan
+        $this->assertDatabaseCount('project_campaigns', 1);
+
+        // 3. Simpan project baru melalui POST /projects dengan existing_media_ids
+        $storeResponse = $this->postJson(route('projects.store'), [
+            'name' => 'Original Campaign (Salinan)',
+            'content_type' => 'post',
+            'caption' => 'Original Caption',
+            'target_time' => '14:00',
+            'repeat_type' => 'continuous',
+            'start_date' => now()->format('Y-m-d'),
+            'targets' => [
+                [
+                    'account_id' => $acc->id,
+                    'platform_target' => 'both',
+                ],
+            ],
+            'existing_media_ids' => [$media->id],
+        ]);
+
+        $storeResponse->assertStatus(200);
+        $storeResponse->assertJson(['success' => true]);
+
+        // Pastikan project baru sekarang tersimpan
+        $this->assertDatabaseCount('project_campaigns', 2);
         $duplicated = ProjectCampaign::where('name', 'Original Campaign (Salinan)')->first();
         $this->assertNotNull($duplicated);
-        $this->assertEquals('paused', $duplicated->status);
         $this->assertEquals('14:00', $duplicated->target_time);
         $this->assertEquals('Original Caption', $duplicated->caption);
 
-        // Pastikan target akun tersalin
+        // Pastikan target akun tersimpan
         $this->assertDatabaseHas('campaign_targets', [
             'project_campaign_id' => $duplicated->id,
             'connected_account_id' => $acc->id,
             'platform_target' => 'both',
         ]);
 
-        // Pastikan media pool tersalin
+        // Pastikan media pool tersimpan
         $this->assertEquals(1, $duplicated->mediaFiles()->count());
 
         // Pastikan initial schedule buffer terbuat
         $this->assertGreaterThan(0, $duplicated->schedules()->count());
-
-        // Test duplikasi kedua: harus bernama Original Campaign (Salinan 2)
-        $response2 = $this->postJson(route('projects.duplicate', $project->id));
-        $response2->assertStatus(200);
-        $this->assertDatabaseHas('project_campaigns', [
-            'name' => 'Original Campaign (Salinan 2)',
-        ]);
     }
 }

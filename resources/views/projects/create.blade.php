@@ -2,6 +2,41 @@
 
 @section('title', 'Buat Project Campaign Baru')
 
+@php
+    $defaultName = '';
+    if (isset($sourceProject) && $sourceProject) {
+        $baseName = preg_replace('/ \(Salinan( \d+)?\)$/i', '', $sourceProject->name);
+        $similarCount = \App\Models\ProjectCampaign::where('name', 'LIKE', $baseName . ' (Salinan%')->count();
+        $defaultName = $similarCount > 0 ? $baseName . ' (Salinan ' . ($similarCount + 1) . ')' : $baseName . ' (Salinan)';
+    }
+    $selectedContentType = old('content_type', $sourceProject->content_type ?? 'story');
+    $selectedRepeatType = old('repeat_type', $sourceProject->repeat_type ?? 'continuous');
+    $captionVal = old('caption', $sourceProject->caption ?? '');
+    $startDateVal = old('start_date', (isset($sourceProject) && $sourceProject->start_date) ? $sourceProject->start_date->format('Y-m-d') : date('Y-m-d'));
+    $endDateVal = old('end_date', (isset($sourceProject) && $sourceProject->end_date) ? $sourceProject->end_date->format('Y-m-d') : date('Y-m-d', strtotime('+30 days')));
+    $targetTimeVal = old('target_time', (isset($sourceProject) && $sourceProject->target_time) ? $sourceProject->target_time : '07:30');
+    $excludeDaysVal = old('exclude_days', isset($sourceProject) ? ($sourceProject->exclude_days ?? []) : [0]);
+
+    $sourceTargets = [];
+    if (isset($sourceProject) && $sourceProject->relationLoaded('targets')) {
+        foreach ($sourceProject->targets as $t) {
+            $sourceTargets[$t->connected_account_id] = $t->platform_target;
+        }
+    }
+
+    $existingMediaData = [];
+    if (isset($sourceProject) && $sourceProject && $sourceProject->relationLoaded('mediaFiles')) {
+        $existingMediaData = $sourceProject->mediaFiles->map(function ($m) {
+            return [
+                'id' => $m->id,
+                'name' => $m->original_name,
+                'url' => $m->url,
+                'is_video' => (bool)$m->is_video,
+            ];
+        })->values()->all();
+    }
+@endphp
+
 @section('content')
 <div class="w-full space-y-5 max-w-7xl mx-auto">
 
@@ -14,10 +49,10 @@
                     <span>Campaigns</span>
                 </a>
                 <span>/</span>
-                <span class="text-slate-900 dark:text-white font-medium">Buat Baru</span>
+                <span class="text-slate-900 dark:text-white font-medium">{{ isset($sourceProject) && $sourceProject ? 'Duplikat Campaign' : 'Buat Baru' }}</span>
             </div>
             <h1 class="text-xl font-bold text-slate-900 dark:text-white flex items-center space-x-2.5">
-                <span>Buat Campaign Baru</span>
+                <span>{{ isset($sourceProject) && $sourceProject ? 'Duplikat Campaign: ' . $sourceProject->name : 'Buat Campaign Baru' }}</span>
             </h1>
         </div>
         <a href="{{ route('projects.index') }}" 
@@ -26,6 +61,24 @@
             <span>Kembali ke Daftar</span>
         </a>
     </div>
+
+    <!-- Banner Notifikasi Duplikat -->
+    @if(isset($sourceProject) && $sourceProject)
+        <div class="p-4 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-copy"></i>
+                </div>
+                <div>
+                    <strong class="block font-bold">Mode Duplikasi Campaign (Belum Disimpan)</strong>
+                    <span>Formulir di bawah telah diisi dengan data dari <strong>{{ $sourceProject->name }}</strong>. Silakan sesuaikan data lalu klik tombol <strong>Simpan & Inisialisasi</strong> untuk menyimpan.</span>
+                </div>
+            </div>
+            <a href="{{ route('projects.create') }}" class="px-3 py-1.5 rounded-lg border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-gray-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 font-semibold text-[11px] shrink-0 transition text-center">
+                Mulai Formulir Kosong
+            </a>
+        </div>
+    @endif
 
     @if($accounts->isEmpty())
         <div class="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 text-xs flex items-center space-x-3">
@@ -55,7 +108,7 @@
                     <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
                         Nama Campaign <span class="text-rose-500">*</span>
                     </label>
-                    <input type="text" name="name" required placeholder="Contoh: Campaign Pagi (Promo & Quotes)" 
+                    <input type="text" name="name" required value="{{ old('name', $defaultName) }}" placeholder="Contoh: Campaign Pagi (Promo & Quotes)" 
                            class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition">
                 </div>
 
@@ -66,7 +119,7 @@
                     </label>
                     <div class="grid grid-cols-2 gap-3">
                         <label class="cursor-pointer relative">
-                            <input type="radio" name="content_type" value="story" checked class="peer hidden" onchange="updateContentTypeHint()">
+                            <input type="radio" name="content_type" value="story" {{ $selectedContentType === 'story' ? 'checked' : '' }} class="peer hidden" onchange="updateContentTypeHint()">
                             <div class="p-3 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition flex items-center space-x-3">
                                 <div class="w-8 h-8 rounded-lg bg-pink-500/10 text-pink-600 dark:text-pink-400 flex items-center justify-center text-sm shrink-0">
                                     <i class="fa-solid fa-circle-notch"></i>
@@ -79,7 +132,7 @@
                         </label>
 
                         <label class="cursor-pointer relative">
-                            <input type="radio" name="content_type" value="post" class="peer hidden" onchange="updateContentTypeHint()">
+                            <input type="radio" name="content_type" value="post" {{ $selectedContentType === 'post' ? 'checked' : '' }} class="peer hidden" onchange="updateContentTypeHint()">
                             <div class="p-3 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition flex items-center space-x-3">
                                 <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm shrink-0">
                                     <i class="fa-solid fa-square-rss"></i>
@@ -102,7 +155,7 @@
                         <span class="text-[10px] text-slate-400 dark:text-gray-500" id="captionHint">Opsional untuk Story</span>
                     </div>
                     <textarea name="caption" rows="3" placeholder="Tuliskan caption postingan atau hashtag di sini..."
-                              class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3.5 py-2 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition"></textarea>
+                              class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3.5 py-2 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition">{{ $captionVal }}</textarea>
                 </div>
             </div>
 
@@ -120,7 +173,7 @@
                     </label>
                     <div class="grid grid-cols-3 gap-2 sm:gap-3">
                         <label class="cursor-pointer relative">
-                            <input type="radio" name="repeat_type" value="continuous" checked class="peer hidden" onchange="toggleRepeatFields()">
+                            <input type="radio" name="repeat_type" value="continuous" {{ $selectedRepeatType === 'continuous' ? 'checked' : '' }} class="peer hidden" onchange="toggleRepeatFields()">
                             <div class="p-2.5 sm:p-3 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition text-center">
                                 <div class="text-indigo-600 dark:text-indigo-400 text-sm mb-0.5"><i class="fa-solid fa-arrows-rotate"></i></div>
                                 <div class="text-xs font-bold text-slate-900 dark:text-white">Kontinu</div>
@@ -129,7 +182,7 @@
                         </label>
 
                         <label class="cursor-pointer relative">
-                            <input type="radio" name="repeat_type" value="once" class="peer hidden" onchange="toggleRepeatFields()">
+                            <input type="radio" name="repeat_type" value="once" {{ $selectedRepeatType === 'once' ? 'checked' : '' }} class="peer hidden" onchange="toggleRepeatFields()">
                             <div class="p-2.5 sm:p-3 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition text-center">
                                 <div class="text-amber-500 text-sm mb-0.5"><i class="fa-solid fa-bullseye"></i></div>
                                 <div class="text-xs font-bold text-slate-900 dark:text-white">1x Post</div>
@@ -138,7 +191,7 @@
                         </label>
 
                         <label class="cursor-pointer relative">
-                            <input type="radio" name="repeat_type" value="until_date" class="peer hidden" onchange="toggleRepeatFields()">
+                            <input type="radio" name="repeat_type" value="until_date" {{ $selectedRepeatType === 'until_date' ? 'checked' : '' }} class="peer hidden" onchange="toggleRepeatFields()">
                             <div class="p-2.5 sm:p-3 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition text-center">
                                 <div class="text-purple-500 text-sm mb-0.5"><i class="fa-regular fa-calendar-check"></i></div>
                                 <div class="text-xs font-bold text-slate-900 dark:text-white">Hingga Tgl</div>
@@ -154,7 +207,7 @@
                         <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 mb-1" id="startDateLabel">
                             Mulai Tanggal <span class="text-rose-500">*</span>
                         </label>
-                        <input type="date" name="start_date" id="inputStartDate" value="{{ date('Y-m-d') }}" required
+                        <input type="date" name="start_date" id="inputStartDate" value="{{ $startDateVal }}" required
                                class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition">
                         <p id="startDateHelp" class="text-[10px] text-slate-400 dark:text-gray-500 mt-1">Jadwal dimulai dari tanggal ini ke depan.</p>
                     </div>
@@ -163,7 +216,7 @@
                         <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 mb-1">
                             Sampai Tanggal <span class="text-rose-500">*</span>
                         </label>
-                        <input type="date" name="end_date" id="inputEndDate" value="{{ date('Y-m-d', strtotime('+30 days')) }}" 
+                        <input type="date" name="end_date" id="inputEndDate" value="{{ $endDateVal }}" 
                                class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition">
                         <p class="text-[10px] text-slate-400 dark:text-gray-500 mt-1">Berhenti tayang setelah tanggal ini.</p>
                     </div>
@@ -172,7 +225,7 @@
                         <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 mb-1">
                             Jam Tayang (WIB) <span class="text-rose-500">*</span>
                         </label>
-                        <input type="time" name="target_time" id="inputTargetTime" value="07:30" required 
+                        <input type="time" name="target_time" id="inputTargetTime" value="{{ $targetTimeVal }}" required 
                                class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition">
                         <p id="onceTimeNotice" class="hidden text-[10px] text-amber-500 mt-1 font-medium">Khusus 1x: Min. 30 menit dari jam sekarang.</p>
                     </div>
@@ -197,7 +250,7 @@
                         @endphp
                         @foreach($days as $val => $dayName)
                             <label class="cursor-pointer select-none">
-                                <input type="checkbox" name="exclude_days[]" value="{{ $val }}" {{ $val === 0 ? 'checked' : '' }} class="peer hidden">
+                                <input type="checkbox" name="exclude_days[]" value="{{ $val }}" {{ in_array($val, $excludeDaysVal) ? 'checked' : '' }} class="peer hidden">
                                 <span class="inline-flex items-center px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[11px] font-semibold text-slate-600 dark:text-gray-300 peer-checked:bg-rose-500 peer-checked:border-rose-500 peer-checked:text-white transition shadow-sm">
                                     {{ $dayName }}
                                 </span>
@@ -229,10 +282,15 @@
 
                 <div class="space-y-1.5 max-h-56 overflow-y-auto pr-1 divide-y divide-slate-100 dark:divide-gray-800/60">
                     @forelse($accounts as $acc)
+                        @php
+                            $isTargeted = isset($sourceTargets[$acc->id]);
+                            $platformTarget = $sourceTargets[$acc->id] ?? 'both';
+                        @endphp
                         <div class="pt-2 first:pt-0">
                             <div class="flex items-center justify-between gap-2 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-gray-800/40 transition">
                                 <label class="flex items-center space-x-2.5 cursor-pointer flex-grow min-w-0">
                                     <input type="checkbox" name="selected_accounts[]" value="{{ $acc->id }}" 
+                                           {{ $isTargeted ? 'checked' : '' }}
                                            class="account-checkbox rounded text-indigo-600 focus:ring-indigo-500 bg-white dark:bg-gray-800 border-slate-300 dark:border-gray-700 w-4 h-4 shrink-0"
                                            onchange="toggleTargetRow({{ $acc->id }})">
                                     <div class="min-w-0">
@@ -247,15 +305,14 @@
                                     </div>
                                 </label>
 
-                                <div id="platformControl_{{ $acc->id }}" class="hidden shrink-0">
+                                <div id="platformControl_{{ $acc->id }}" class="{{ $isTargeted ? '' : 'hidden' }} shrink-0">
                                     <select name="platform_targets[{{ $acc->id }}]" class="bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-2 py-1 text-[11px] text-slate-800 dark:text-gray-200 focus:outline-none focus:border-indigo-500 transition">
-                                        <option value="both" selected>Both (FB & IG)</option>
-                                        <option value="instagram_only">Instagram Saja</option>
-                                        <option value="facebook_only">FB Page Saja</option>
+                                        <option value="both" {{ $platformTarget === 'both' ? 'selected' : '' }}>Both (FB & IG)</option>
+                                        <option value="instagram_only" {{ $platformTarget === 'instagram_only' ? 'selected' : '' }}>Instagram Saja</option>
+                                        <option value="facebook_only" {{ $platformTarget === 'facebook_only' ? 'selected' : '' }}>FB Page Saja</option>
                                     </select>
                                 </div>
                             </div>
-                        </div>
                     @empty
                         <div class="p-4 text-center text-xs text-slate-400">
                             Belum ada akun Meta yang terhubung.
@@ -317,6 +374,10 @@
 <script>
     // State Media Files
     let selectedFiles = [];
+    let existingMedia = {!! json_encode($existingMediaData) !!};
+
+    let lightboxItems = [];
+    let currentLightboxIdx = 0;
 
     // Dropzone & Media Handling
     const dropzone = document.getElementById('dropzone');
@@ -366,6 +427,12 @@
         renderPreviews();
     }
 
+    function removeExistingMedia(index, event) {
+        if (event) event.stopPropagation();
+        existingMedia.splice(index, 1);
+        renderPreviews();
+    }
+
     function removeFile(index, event) {
         if (event) event.stopPropagation();
         selectedFiles.splice(index, 1);
@@ -374,6 +441,7 @@
 
     function clearAllMedia() {
         selectedFiles = [];
+        existingMedia = [];
         renderPreviews();
     }
 
@@ -381,15 +449,58 @@
         previewGrid.innerHTML = '';
         lightboxItems = [];
 
-        if (selectedFiles.length === 0) {
+        const totalCount = existingMedia.length + selectedFiles.length;
+
+        if (totalCount === 0) {
             previewContainer.classList.add('hidden');
             mediaCountBadge.textContent = '0 File';
             return;
         }
 
         previewContainer.classList.remove('hidden');
-        mediaCountBadge.textContent = `${selectedFiles.length} File`;
+        mediaCountBadge.textContent = `${totalCount} File`;
 
+        // 1. Render Existing Media dari Project yang Diduplikat
+        existingMedia.forEach((m, index) => {
+            lightboxItems.push({
+                url: m.url,
+                name: m.name,
+                isVideo: !!m.is_video
+            });
+
+            const card = document.createElement('div');
+            card.className = 'group relative rounded-lg border border-indigo-300 dark:border-indigo-700/80 bg-slate-100 dark:bg-gray-800 overflow-hidden shadow-sm cursor-pointer aspect-square';
+
+            let mediaHtml = m.is_video 
+                ? `<video src="${m.url}" class="w-full h-full object-cover"></video>` 
+                : `<img src="${m.url}" class="w-full h-full object-cover group-hover:scale-105 transition duration-200">`;
+
+            card.innerHTML = `
+                ${mediaHtml}
+                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </div>
+                <button type="button" onclick="removeExistingMedia(${index}, event)" title="Hapus Dari Salinan" class="absolute top-1 right-1 w-5 h-5 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center text-[10px] shadow z-10">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div class="absolute bottom-1 left-1 px-1 py-0.5 rounded bg-indigo-600/90 text-[8px] text-white font-mono flex items-center space-x-0.5 shadow-sm">
+                    <i class="fa-solid fa-copy text-[7px]"></i>
+                    <span>SALINAN</span>
+                </div>
+                ${m.is_video ? '<div class="absolute top-1 left-1 px-1 py-0.5 rounded bg-black/60 text-[8px] text-white font-mono flex items-center space-x-0.5"><i class="fa-solid fa-video text-[7px]"></i><span>VID</span></div>' : ''}
+            `;
+
+            const currentIdx = lightboxItems.length - 1;
+            card.onclick = () => {
+                currentLightboxIdx = currentIdx;
+                updateLightboxView();
+                document.getElementById('lightboxModal').classList.remove('hidden');
+            };
+
+            previewGrid.appendChild(card);
+        });
+
+        // 2. Render File Baru yang Diunggah
         selectedFiles.forEach((file, index) => {
             const fileUrl = URL.createObjectURL(file);
             const isVideo = file.type.startsWith('video/') || file.name.match(/\.(mp4|mov)$/i);
@@ -402,7 +513,7 @@
 
             const card = document.createElement('div');
             card.className = 'group relative rounded-lg border border-slate-200 dark:border-gray-800 bg-slate-100 dark:bg-gray-800 overflow-hidden shadow-sm cursor-pointer aspect-square';
-            
+
             let mediaHtml = isVideo 
                 ? `<video src="${fileUrl}" class="w-full h-full object-cover"></video>` 
                 : `<img src="${fileUrl}" class="w-full h-full object-cover group-hover:scale-105 transition duration-200">`;
@@ -418,8 +529,9 @@
                 ${isVideo ? '<div class="absolute bottom-1 left-1 px-1 py-0.5 rounded bg-black/60 text-[8px] text-white font-mono flex items-center space-x-0.5"><i class="fa-solid fa-video text-[7px]"></i><span>VID</span></div>' : ''}
             `;
 
+            const currentIdx = lightboxItems.length - 1;
             card.onclick = () => {
-                currentLightboxIdx = index;
+                currentLightboxIdx = currentIdx;
                 updateLightboxView();
                 document.getElementById('lightboxModal').classList.remove('hidden');
             };
@@ -469,7 +581,9 @@
 
     // Repeat Mode Handling
     function toggleRepeatFields() {
-        const repeatType = document.querySelector('input[name="repeat_type"]:checked').value;
+        const checkedRepeat = document.querySelector('input[name="repeat_type"]:checked');
+        if (!checkedRepeat) return;
+        const repeatType = checkedRepeat.value;
         const startWrapper = document.getElementById('startDateWrapper');
         const endWrapper = document.getElementById('endDateWrapper');
         const startLabel = document.getElementById('startDateLabel');
@@ -491,11 +605,13 @@
             excludeDaysWrapper.classList.add('hidden');
             onceNotice.classList.remove('hidden');
 
-            const now = new Date();
-            now.setMinutes(now.getMinutes() + 35);
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            timeInput.value = `${hours}:${minutes}`;
+            if (!timeInput.value) {
+                const now = new Date();
+                now.setMinutes(now.getMinutes() + 35);
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                timeInput.value = `${hours}:${minutes}`;
+            }
         } else if (repeatType === 'until_date') {
             endWrapper.classList.remove('hidden');
             startLabel.innerHTML = 'Mulai Tanggal <span class="text-rose-500">*</span>';
@@ -506,16 +622,22 @@
     }
 
     function updateContentTypeHint() {
-        const contentType = document.querySelector('input[name="content_type"]:checked').value;
+        const checkedContent = document.querySelector('input[name="content_type"]:checked');
+        if (!checkedContent) return;
+        const contentType = checkedContent.value;
         const hint = document.getElementById('captionHint');
         if (hint) {
             hint.textContent = contentType === 'story' ? 'Opsional untuk Story' : 'Disarankan untuk Feed Post';
         }
     }
 
-    // Initialize state
+    // Initialize state on page load
     toggleRepeatFields();
     updateAccountCounter();
+    updateContentTypeHint();
+    if (existingMedia.length > 0) {
+        renderPreviews();
+    }
 
     // Form Submit Handling
     document.getElementById('formCreateProject').addEventListener('submit', function(e) {
@@ -527,7 +649,7 @@
             return;
         }
 
-        if (selectedFiles.length === 0) {
+        if (selectedFiles.length === 0 && existingMedia.length === 0) {
             showAlert('warning', 'Unggah Media', 'Silakan pilih atau tarik minimal 1 file gambar atau video ke area Media Pool.');
             return;
         }
@@ -544,12 +666,17 @@
             formData.append(`targets[${idx}][platform_target]`, platformVal);
         });
 
-        // Append media files from state
+        // Append existing media IDs dari project yang diduplikat
+        existingMedia.forEach((m) => {
+            formData.append('existing_media_ids[]', m.id);
+        });
+
+        // Append media files baru yang diupload
         selectedFiles.forEach((f) => {
             formData.append('media_files[]', f);
         });
 
-        showLoading('Menginisialisasi Campaign...', 'Mengunggah materi media pool dan membuat antrean jadwal rolling...');
+        showLoading('Menginisialisasi Campaign...', 'Menyimpan konfigurasi campaign dan membuat antrean jadwal rolling...');
 
         fetch("{{ route('projects.store') }}", {
             method: 'POST',

@@ -301,10 +301,10 @@
                                class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-200/70 dark:text-gray-400 dark:hover:text-indigo-400 dark:hover:bg-gray-800 rounded-lg transition min-w-[36px] min-h-[36px] flex items-center justify-center" title="Edit Campaign">
                                 <i class="fa-solid fa-pen text-xs"></i>
                             </a>
-                            <button onclick="duplicateProject({{ $project->id }}, '{{ addslashes($project->name) }}')" 
-                                    class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-200/70 dark:text-gray-400 dark:hover:text-indigo-400 dark:hover:bg-gray-800 rounded-lg transition min-w-[36px] min-h-[36px] flex items-center justify-center" title="Duplikat Campaign">
+                            <a href="{{ route('projects.create', ['duplicate_from' => $project->id]) }}" 
+                               class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-200/70 dark:text-gray-400 dark:hover:text-indigo-400 dark:hover:bg-gray-800 rounded-lg transition min-w-[36px] min-h-[36px] flex items-center justify-center" title="Duplikat ke Form Baru">
                                 <i class="fa-solid fa-copy text-xs"></i>
-                            </button>
+                            </a>
                             <button onclick="deleteProject({{ $project->id }}, '{{ $project->name }}')" 
                                     class="p-2 text-slate-500 hover:text-rose-600 hover:bg-slate-200/70 dark:text-gray-400 dark:hover:text-rose-400 dark:hover:bg-gray-800 rounded-lg transition min-w-[36px] min-h-[36px] flex items-center justify-center" title="Hapus Campaign">
                                 <i class="fa-solid fa-trash text-xs"></i>
@@ -416,9 +416,9 @@
                                         <a href="{{ route('projects.edit', $project->id) }}" class="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-200/70 dark:text-gray-400 dark:hover:text-indigo-400 dark:hover:bg-gray-800 rounded-lg transition" title="Edit">
                                             <i class="fa-solid fa-pen text-xs"></i>
                                         </a>
-                                        <button onclick="duplicateProject({{ $project->id }}, '{{ addslashes($project->name) }}')" class="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-200/70 dark:text-gray-400 dark:hover:text-indigo-400 dark:hover:bg-gray-800 rounded-lg transition" title="Duplikat">
+                                        <a href="{{ route('projects.create', ['duplicate_from' => $project->id]) }}" class="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-200/70 dark:text-gray-400 dark:hover:text-indigo-400 dark:hover:bg-gray-800 rounded-lg transition" title="Duplikat ke Form Baru">
                                             <i class="fa-solid fa-copy text-xs"></i>
-                                        </button>
+                                        </a>
                                         <button onclick="deleteProject({{ $project->id }}, '{{ $project->name }}')" class="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-slate-200/70 dark:text-gray-400 dark:hover:text-rose-400 dark:hover:bg-gray-800 rounded-lg transition" title="Hapus">
                                             <i class="fa-solid fa-trash text-xs"></i>
                                         </button>
@@ -820,50 +820,7 @@
     }
 
     function duplicateProject(id, name) {
-        Swal.fire({
-            title: `Duplikat Project?`,
-            text: `Project baru akan dibuat sebagai salinan dari '${name}' lengkap beserta target akun dan media pool-nya.`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#4f46e5',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: '<i class="fa-solid fa-copy mr-1"></i> Ya, Duplikat Project',
-            cancelButtonText: 'Batal',
-            customClass: {
-                popup: 'swal2-popup-dark',
-                title: 'swal2-title-dark',
-                htmlContainer: 'swal2-html-dark'
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                showLoading('Menduplikat...', 'Menyalin konfigurasi, target akun, dan media...');
-                fetch(`/projects/${id}/duplicate`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
-                    }
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        showAlert('success', 'Berhasil Diduplikat!', data.message);
-                        setTimeout(() => {
-                            if (data.redirect) {
-                                window.location.href = data.redirect;
-                            } else {
-                                window.location.reload();
-                            }
-                        }, 1000);
-                    } else {
-                        showAlert('error', 'Gagal', data.message);
-                    }
-                })
-                .catch(err => {
-                    showAlert('error', 'Error', err.message);
-                });
-            }
-        });
+        window.location.href = `{{ route('projects.create') }}?duplicate_from=${id}`;
     }
 </script>
 @endsection

@@ -35,11 +35,16 @@ class ProjectController extends Controller
         return view('projects.index', compact('projects', 'accounts'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $accounts = ConnectedAccount::where('is_active', true)->orderBy('page_name')->get();
+        $sourceProject = null;
 
-        return view('projects.create', compact('accounts'));
+        if ($request->filled('duplicate_from')) {
+            $sourceProject = ProjectCampaign::with(['targets.connectedAccount', 'mediaFiles'])->find($request->duplicate_from);
+        }
+
+        return view('projects.create', compact('accounts', 'sourceProject'));
     }
 
     public function show($id)
@@ -91,12 +96,25 @@ class ProjectController extends Controller
                 'start_date' => 'nullable|date',
                 'end_date' => 'nullable|date|after_or_equal:start_date',
                 'exclude_days' => 'nullable|array',
-                'media_files' => 'required|array|min:1',
+                'media_files' => 'nullable|array',
                 'media_files.*' => 'file|mimes:jpg,jpeg,png,mp4,mov|max:50000',
+                'existing_media_ids' => 'nullable|array',
+                'existing_media_ids.*' => 'integer|exists:media_files,id',
                 'targets' => 'required|array|min:1',
                 'targets.*.account_id' => 'required|exists:connected_accounts,id',
                 'targets.*.platform_target' => 'required|in:both,instagram_only,facebook_only',
             ]);
+
+            $existingMediaIds = array_map('intval', $request->input('existing_media_ids', []));
+            $newFiles = $request->file('media_files', []);
+
+            if (empty($existingMediaIds) && empty($newFiles)) {
+                $msg = 'Minimal pilih atau unggah 1 file media pool untuk project ini.';
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => $msg], 422);
+                }
+                return redirect()->back()->with('error', $msg);
+            }
 
             // Validasi Aturan 1x Post: Minimal 30 menit dari jam sekarang
             if ($request->repeat_type === 'once') {
@@ -138,9 +156,13 @@ class ProjectController extends Controller
                 ]);
             }
 
-            // Simpan Media Pool dengan SHA-256 Deduplikasi
-            $uploadedMediaIds = $this->handleMediaUploads($request->file('media_files'));
-            $project->mediaFiles()->sync($uploadedMediaIds);
+            // Simpan Media Pool (gabungan existing yang dipilih dan upload baru)
+            $allMediaIds = $existingMediaIds;
+            if (!empty($newFiles)) {
+                $uploadedMediaIds = $this->handleMediaUploads($newFiles);
+                $allMediaIds = array_merge($allMediaIds, $uploadedMediaIds);
+            }
+            $project->mediaFiles()->sync(array_unique($allMediaIds));
 
             // Inisialisasi Buffer Penjadwalan
             $this->seedInitialBuffer($project);
@@ -329,74 +351,16 @@ class ProjectController extends Controller
 
     public function duplicate(Request $request, $id)
     {
-        try {
-            $project = ProjectCampaign::with(['targets', 'mediaFiles'])->findOrFail($id);
+        $redirectUrl = route('projects.create', ['duplicate_from' => $id]);
 
-            // Tentukan nama unik untuk salinan
-            $baseName = preg_replace('/ \(Salinan( \d+)?\)$/i', '', $project->name);
-            $similarCount = ProjectCampaign::where('name', 'LIKE', $baseName . ' (Salinan%')->count();
-            $copyName = $similarCount > 0
-                ? $baseName . ' (Salinan ' . ($similarCount + 1) . ')'
-                : $baseName . ' (Salinan)';
-
-            // Duplikat data project
-            $newProject = ProjectCampaign::create([
-                'name' => $copyName,
-                'content_type' => $project->content_type,
-                'caption' => $project->caption,
-                'target_time' => $project->target_time,
-                'images_per_post' => $project->images_per_post,
-                'repeat_type' => $project->repeat_type,
-                'start_date' => $project->start_date ? Carbon::parse($project->start_date) : Carbon::today(),
-                'end_date' => $project->end_date ? Carbon::parse($project->end_date) : null,
-                'exclude_days' => $project->exclude_days,
-                'is_continuous' => $project->is_continuous,
-                'status' => 'paused', // Diset 'paused' agar user dapat mereview sebelum jadwal aktif
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'redirect' => $redirectUrl,
             ]);
-
-            // Duplikat target akun
-            foreach ($project->targets as $target) {
-                CampaignTarget::create([
-                    'project_campaign_id' => $newProject->id,
-                    'connected_account_id' => $target->connected_account_id,
-                    'platform_target' => $target->platform_target,
-                ]);
-            }
-
-            // Duplikat relasi media pool
-            if ($project->mediaFiles->isNotEmpty()) {
-                $mediaSync = [];
-                foreach ($project->mediaFiles as $media) {
-                    $mediaSync[$media->id] = ['sort_order' => $media->pivot->sort_order ?? 0];
-                }
-                $newProject->mediaFiles()->attach($mediaSync);
-            }
-
-            // Generate antrean jadwal awal untuk project baru
-            $this->seedInitialBuffer($newProject);
-
-            $msg = "Project '{$project->name}' berhasil diduplikat menjadi '{$newProject->name}'! Status awal diatur ke DIJEDA (PAUSED) agar dapat Anda tinjau terlebih dahulu.";
-
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => $msg,
-                    'redirect' => route('projects.show', $newProject->id),
-                    'new_project_id' => $newProject->id,
-                ]);
-            }
-
-            return redirect()->route('projects.show', $newProject->id)->with('success', $msg);
-
-        } catch (\Exception $e) {
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Gagal menduplikat project: ' . $e->getMessage(),
-                ], 500);
-            }
-            return redirect()->back()->with('error', 'Gagal menduplikat project: ' . $e->getMessage());
         }
+
+        return redirect($redirectUrl);
     }
 
     protected function handleMediaUploads(array $files): array

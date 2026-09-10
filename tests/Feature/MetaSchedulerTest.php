@@ -676,4 +676,56 @@ class MetaSchedulerTest extends TestCase
         // Pastikan initial schedule buffer terbuat
         $this->assertGreaterThan(0, $duplicated->schedules()->count());
     }
+
+    public function test_schedules_index_renders_with_client_side_filter_attributes(): void
+    {
+        $cred = MetaCredential::create([
+            'app_id' => 'app_sch_123',
+            'app_secret' => 'sec_sch_123',
+            'access_token' => 'EAAB_token',
+            'token_type' => 'user',
+            'is_active' => true,
+        ]);
+
+        $account = ConnectedAccount::create([
+            'meta_credential_id' => $cred->id,
+            'page_id' => 'page_sch_123',
+            'page_name' => 'Schedule Test Page',
+            'is_active' => true,
+        ]);
+
+        $project = ProjectCampaign::create([
+            'name' => 'Filter Test Campaign',
+            'content_type' => 'story',
+            'caption' => 'Caption test filter',
+            'target_time' => '10:00',
+            'repeat_type' => 'continuous',
+            'start_date' => now()->format('Y-m-d'),
+        ]);
+
+        $project->targets()->create([
+            'connected_account_id' => $account->id,
+            'platform_target' => 'both',
+        ]);
+
+        $schedule = Schedule::create([
+            'project_campaign_id' => $project->id,
+            'item_code' => 'TEST-001',
+            'media_path' => 'uploads/test.jpg',
+            'target_date' => now()->format('Y-m-d'),
+            'target_time' => '10:00',
+            'status' => 'pending',
+            'notes' => 'Test schedule note',
+        ]);
+
+        $response = $this->get(route('schedules.index'));
+        $response->assertStatus(200);
+        $response->assertSee('Antrean Posting &amp; Monitoring', false);
+        $response->assertSee('data-status="pending"', false);
+        $response->assertSee('data-content-type="story"', false);
+        $response->assertSee('data-platforms="both"', false);
+        $response->assertSee('x-show="isRowVisible($el)"', false);
+        $response->assertSee('isRowVisible(el)', false);
+        $response->assertSee('filterVersion', false);
+    }
 }

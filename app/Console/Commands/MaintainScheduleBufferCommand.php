@@ -16,32 +16,116 @@ class MaintainScheduleBufferCommand extends Command
     {
         $projectId = $this->option('project');
 
-        $query = ProjectCampaign::where('status', 'active');
+        $query = ProjectCampaign::query();
         if ($projectId) {
             $query->where('id', $projectId);
+        } else {
+            $query->where('status', 'active');
         }
 
         $projects = $query->with('mediaFiles')->get();
 
         if ($projects->isEmpty()) {
-            $this->info('Tidak ada project aktif yang perlu dimaintain antreannya.');
+            $this->info('Tidak ada project yang perlu dimaintain antreannya.');
             return Command::SUCCESS;
         }
 
         $totalAdded = 0;
+        $totalPruned = 0;
 
         foreach ($projects as $project) {
+            $pruned = $this->pruneOrphanedSchedules($project);
             $added = $this->maintainProjectBuffer($project);
             $totalAdded += $added;
-            $this->line("  ✓ Project '{$project->name}': +{$added} jadwal baru ditambahkan.");
+            $totalPruned += $pruned;
+            $this->line("  ✓ Project '{$project->name}': -{$pruned} jadwal kedaluwarsa dibersihkan, +{$added} jadwal baru ditambahkan.");
         }
 
-        $this->info("Pemeliharaan antrean jadwal selesai. Total {$totalAdded} jadwal baru ditambahkan.");
+        // Jika dipanggil global tanpa spesifik project, bersihkan juga jadwal kedaluwarsa pada project paused
+        if (!$projectId) {
+            $pausedProjects = ProjectCampaign::where('status', '!=', 'active')->get();
+            foreach ($pausedProjects as $pausedProj) {
+                $pPruned = $this->pruneOrphanedSchedules($pausedProj);
+                if ($pPruned > 0) {
+                    $totalPruned += $pPruned;
+                    $this->line("  ✓ [PAUSED] Project '{$pausedProj->name}': -{$pPruned} jadwal kedaluwarsa dibersihkan.");
+                }
+            }
+        }
+
+        $this->info("Pemeliharaan antrean jadwal selesai. Total -{$totalPruned} jadwal dibersihkan, +{$totalAdded} jadwal baru ditambahkan.");
         return Command::SUCCESS;
+    }
+
+    /**
+     * Bersihkan jadwal berstatus pending yang sudah tidak valid:
+     * 1. Jadwal setelah end_date (mode until_date)
+     * 2. Jadwal sebelum start_date
+     * 3. Jadwal pada hari yang dikecualikan (exclude_days)
+     * 4. Jadwal berlebih pada mode once (1x post)
+     */
+    public function pruneOrphanedSchedules(ProjectCampaign $project): int
+    {
+        $deletedCount = 0;
+
+        // 1. Mode Once: hapus semua pending selain target date
+        if ($project->repeat_type === 'once') {
+            $targetDate = $project->start_date ? $project->start_date->format('Y-m-d') : Carbon::today()->format('Y-m-d');
+            $deletedCount += Schedule::where('project_campaign_id', $project->id)
+                ->where('status', 'pending')
+                ->where('target_date', '!=', $targetDate)
+                ->delete();
+            return $deletedCount;
+        }
+
+        // 2. Mode until_date dengan end_date: hapus semua pending setelah end_date
+        if ($project->repeat_type === 'until_date' && $project->end_date) {
+            $endDateStr = ($project->end_date instanceof Carbon)
+                ? $project->end_date->format('Y-m-d')
+                : Carbon::parse($project->end_date)->format('Y-m-d');
+
+            $deletedCount += Schedule::where('project_campaign_id', $project->id)
+                ->where('status', 'pending')
+                ->where('target_date', '>', $endDateStr)
+                ->delete();
+        }
+
+        // 3. Hapus pending sebelum start_date (jika start_date diatur di masa depan)
+        if ($project->start_date) {
+            $startDateStr = ($project->start_date instanceof Carbon)
+                ? $project->start_date->format('Y-m-d')
+                : Carbon::parse($project->start_date)->format('Y-m-d');
+
+            $deletedCount += Schedule::where('project_campaign_id', $project->id)
+                ->where('status', 'pending')
+                ->where('target_date', '<', $startDateStr)
+                ->delete();
+        }
+
+        // 4. Hapus pending yang jatuh pada hari yang dikecualikan (exclude_days)
+        $excludeDays = $project->exclude_days ?? [];
+        if (!empty($excludeDays)) {
+            $excludeDayInts = array_map('intval', $excludeDays);
+            $pendingSchedules = Schedule::where('project_campaign_id', $project->id)
+                ->where('status', 'pending')
+                ->get();
+
+            foreach ($pendingSchedules as $ps) {
+                if ($ps->target_date && in_array((int)$ps->target_date->dayOfWeek, $excludeDayInts)) {
+                    $ps->delete();
+                    $deletedCount++;
+                }
+            }
+        }
+
+        return $deletedCount;
     }
 
     public function maintainProjectBuffer(ProjectCampaign $project): int
     {
+        // Jalankan pembersihan jadwal orphaned / lewat batas tanggal terlebih dahulu
+        $this->pruneOrphanedSchedules($project);
+
         if ($project->repeat_type === 'once') {
             return 0; // Mode 1x post tidak memakai rolling buffer
         }

@@ -44,7 +44,12 @@ class ProjectController extends Controller
 
     public function show($id)
     {
-        $project = ProjectCampaign::with([
+        $project = ProjectCampaign::findOrFail($id);
+
+        // Self-healing: bersihkan jadwal pending yang sudah tidak valid (misal setelah end_date diperbarui atau exclude_days)
+        (new MaintainScheduleBufferCommand())->pruneOrphanedSchedules($project);
+
+        $project->load([
             'targets.connectedAccount',
             'mediaFiles',
             'schedules' => function ($q) {
@@ -53,7 +58,7 @@ class ProjectController extends Controller
             'publishLogs' => function ($q) {
                 $q->with('connectedAccount')->latest('executed_at')->take(50);
             },
-        ])->findOrFail($id);
+        ]);
 
         $furthestDate = $project->schedules()->where('status', 'pending')->max('target_date');
         $furthestDateFormatted = $furthestDate ? Carbon::parse($furthestDate)->translatedFormat('d F Y') : 'Belum Ada Jadwal';
@@ -459,30 +464,27 @@ class ProjectController extends Controller
 
     public function syncProjectSchedules(ProjectCampaign $project): array
     {
-        $deletedCount = 0;
+        $bufferCommand = new MaintainScheduleBufferCommand();
+
+        // 1. Bersihkan jadwal pending yang tidak valid (di luar batas tanggal atau exclude_days)
+        $deletedCount = $bufferCommand->pruneOrphanedSchedules($project);
+
+        // 2. Update target_time untuk seluruh jadwal pending tersisa
+        Schedule::where('project_campaign_id', $project->id)
+            ->where('status', 'pending')
+            ->update(['target_time' => $project->target_time]);
+
         $addedCount = 0;
 
         // MODE 1: ONCE (Hanya 1x Post)
         if ($project->repeat_type === 'once') {
             $targetDate = $project->start_date ? Carbon::parse($project->start_date)->format('Y-m-d') : Carbon::today()->format('Y-m-d');
-
-            // 1. Hapus jadwal pending yang tanggalnya BUKAN targetDate
-            $deletedCount += Schedule::where('project_campaign_id', $project->id)
-                ->where('status', 'pending')
-                ->where('target_date', '!=', $targetDate)
-                ->delete();
-
-            // 2. Cek jadwal pending pada targetDate
             $existing = Schedule::where('project_campaign_id', $project->id)
                 ->where('status', 'pending')
                 ->where('target_date', $targetDate)
                 ->first();
 
-            if ($existing) {
-                $existing->update([
-                    'target_time' => $project->target_time,
-                ]);
-            } else {
+            if (!$existing) {
                 $this->seedOnceSchedule($project, $targetDate);
                 $addedCount++;
             }
@@ -490,48 +492,9 @@ class ProjectController extends Controller
             return ['deleted' => $deletedCount, 'added' => $addedCount];
         }
 
-        // MODE 2 & 3: CONTINUOUS & UNTIL_DATE
-        // 1. Update target_time untuk seluruh jadwal pending
-        Schedule::where('project_campaign_id', $project->id)
-            ->where('status', 'pending')
-            ->update(['target_time' => $project->target_time]);
-
-        // 2. Hapus jadwal pending sebelum start_date (jika start_date dimajukan ke masa depan)
-        if ($project->start_date) {
-            $startDateStr = $project->start_date->format('Y-m-d');
-            $deletedCount += Schedule::where('project_campaign_id', $project->id)
-                ->where('status', 'pending')
-                ->where('target_date', '<', $startDateStr)
-                ->delete();
-        }
-
-        // 3. Jika mode until_date dan ada end_date, hapus jadwal pending setelah end_date
-        if ($project->repeat_type === 'until_date' && $project->end_date) {
-            $endDateStr = $project->end_date->format('Y-m-d');
-            $deletedCount += Schedule::where('project_campaign_id', $project->id)
-                ->where('status', 'pending')
-                ->where('target_date', '>', $endDateStr)
-                ->delete();
-        }
-
-        // 4. Hapus jadwal pending yang jatuh pada hari yang dikecualikan (exclude_days)
-        $excludeDays = $project->exclude_days ?? [];
-        if (!empty($excludeDays)) {
-            $pendingSchedules = Schedule::where('project_campaign_id', $project->id)
-                ->where('status', 'pending')
-                ->get();
-
-            foreach ($pendingSchedules as $ps) {
-                if ($ps->target_date && in_array($ps->target_date->dayOfWeek, $excludeDays)) {
-                    $ps->delete();
-                    $deletedCount++;
-                }
-            }
-        }
-
-        // 5. Isi kembali tanggal yang kosong / perluas buffer
+        // MODE 2 & 3: CONTINUOUS & UNTIL_DATE - Isi kembali tanggal yang kosong / perluas buffer
         if ($project->status === 'active') {
-            $addedCount = (new MaintainScheduleBufferCommand())->maintainProjectBuffer($project);
+            $addedCount = $bufferCommand->maintainProjectBuffer($project);
         }
 
         return ['deleted' => $deletedCount, 'added' => $addedCount];

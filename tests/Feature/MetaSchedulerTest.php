@@ -508,4 +508,82 @@ class MetaSchedulerTest extends TestCase
         // Buffer harus terisi
         $this->assertGreaterThan(0, $project->schedules()->where('status', 'pending')->count());
     }
+
+    public function test_show_project_self_heals_and_prunes_orphaned_schedules_exceeding_end_date(): void
+    {
+        $project = ProjectCampaign::create([
+            'name' => 'Self Healing Test Project',
+            'content_type' => 'post',
+            'target_time' => '19:30',
+            'repeat_type' => 'until_date',
+            'start_date' => Carbon::today(),
+            'end_date' => Carbon::today()->addDays(5),
+            'status' => 'active',
+        ]);
+
+        $media = MediaFile::create([
+            'original_name' => 'heal.jpg',
+            'file_path' => '/storage/uploads/heal.jpg',
+            'file_hash' => 'healhash123',
+            'mime_type' => 'image/jpeg',
+            'file_size' => 1024,
+            'media_type' => 'image',
+        ]);
+        $project->mediaFiles()->attach($media->id);
+
+        $validSchedule = Schedule::create([
+            'project_campaign_id' => $project->id,
+            'item_code' => 'valid_sch',
+            'media_path' => '/storage/uploads/heal.jpg',
+            'target_date' => Carbon::today()->addDays(2)->format('Y-m-d'),
+            'target_time' => '19:30',
+            'status' => 'pending',
+        ]);
+
+        $orphanedSchedule = Schedule::create([
+            'project_campaign_id' => $project->id,
+            'item_code' => 'orphaned_sch',
+            'media_path' => '/storage/uploads/heal.jpg',
+            'target_date' => Carbon::today()->addDays(15)->format('Y-m-d'),
+            'target_time' => '19:30',
+            'status' => 'pending',
+        ]);
+
+        $response = $this->get(route('projects.show', $project->id));
+        $response->assertStatus(200);
+
+        // Jadwal orphaned harus langsung terhapus oleh self-healing
+        $this->assertDatabaseMissing('schedules', ['id' => $orphanedSchedule->id]);
+        $this->assertDatabaseHas('schedules', ['id' => $validSchedule->id]);
+
+        // Tanggal terjauh pada response tidak boleh menyebut hari ke-15
+        $orphanedDateFormatted = Carbon::today()->addDays(15)->translatedFormat('d F Y');
+        $response->assertDontSee($orphanedDateFormatted);
+    }
+
+    public function test_maintain_schedule_buffer_command_prunes_orphaned_schedules_globally(): void
+    {
+        $project = ProjectCampaign::create([
+            'name' => 'Command Prune Test',
+            'content_type' => 'post',
+            'target_time' => '19:30',
+            'repeat_type' => 'until_date',
+            'start_date' => Carbon::today(),
+            'end_date' => Carbon::today()->addDays(3),
+            'status' => 'active',
+        ]);
+
+        $orphanedSchedule = Schedule::create([
+            'project_campaign_id' => $project->id,
+            'item_code' => 'cmd_orphaned',
+            'media_path' => '/storage/uploads/test.jpg',
+            'target_date' => Carbon::today()->addDays(10)->format('Y-m-d'),
+            'target_time' => '19:30',
+            'status' => 'pending',
+        ]);
+
+        \Illuminate\Support\Facades\Artisan::call('meta:maintain-buffer');
+
+        $this->assertDatabaseMissing('schedules', ['id' => $orphanedSchedule->id]);
+    }
 }

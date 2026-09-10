@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\MetaIntegrationController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SSOController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -67,5 +68,9 @@ Route::middleware('auth')->group(function () {
         Route::resource('users', UserController::class);
         Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggleStatus');
         Route::post('users/{user}/approve', [UserController::class, 'approve'])->name('users.approve');
+
+        // System Settings & Cloudflare R2 Monitoring
+        Route::get('settings', [SettingController::class, 'index'])->name('settings.index');
+        Route::post('settings/test-r2', [SettingController::class, 'testR2'])->name('settings.testR2');
     });
 });

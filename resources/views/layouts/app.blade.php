@@ -448,23 +448,16 @@
                     </div>
                     <span>Manajemen User</span>
                 </a>
-            </div>
-            @endif
 
-            <!-- Group 4: Pengaturan Akun -->
-            <div class="space-y-1">
-                <div class="px-3 pb-1 text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-wider">
-                    Akun
-                </div>
-
-                <a href="{{ route('profile') }}" 
-                   class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition group {{ request()->routeIs('profile*') ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60' }}">
+                <a href="{{ route('settings.index') }}" 
+                   class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition group {{ request()->routeIs('settings.*') ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60' }}">
                     <div class="w-5 text-center">
-                        <i class="fa-solid fa-user-circle text-sm {{ request()->routeIs('profile*') ? 'text-white' : 'text-slate-400 dark:text-gray-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400' }}"></i>
+                        <i class="fa-solid fa-gear text-sm {{ request()->routeIs('settings.*') ? 'text-white' : 'text-slate-400 dark:text-gray-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400' }}"></i>
                     </div>
-                    <span>Profil Saya</span>
+                    <span>Pengaturan</span>
                 </a>
             </div>
+            @endif
         </div>
     </aside>
 
@@ -500,6 +493,8 @@
                                     Integrasi Meta API
                                 @elseif(request()->routeIs('users.*'))
                                     Manajemen User
+                                @elseif(request()->routeIs('settings.*'))
+                                    Pengaturan
                                 @elseif(request()->routeIs('profile*'))
                                     Profil Saya
                                 @else
@@ -579,6 +574,12 @@
                                        class="flex items-center space-x-2.5 px-4 py-2 text-xs text-slate-700 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition">
                                         <i class="fa-solid fa-users text-purple-500 text-xs w-4 text-center"></i>
                                         <span>Manajemen User</span>
+                                    </a>
+
+                                    <a href="{{ route('settings.index') }}" 
+                                       class="flex items-center space-x-2.5 px-4 py-2 text-xs text-slate-700 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition">
+                                        <i class="fa-solid fa-gear text-slate-500 text-xs w-4 text-center"></i>
+                                        <span>Pengaturan Sistem</span>
                                     </a>
                                     @endif
                                 </div>

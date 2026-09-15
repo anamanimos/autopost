@@ -2,359 +2,662 @@
 
 @section('title', 'Edit Project Campaign: ' . $project->name)
 
-@section('content')
-<div class="w-full space-y-6">
+@php
+    $selectedContentType = old('content_type', $project->content_type ?? 'story');
+    $selectedRepeatType = old('repeat_type', $project->repeat_type ?? 'continuous');
+    $captionVal = old('caption', $project->caption ?? '');
+    $startDateVal = old('start_date', $project->start_date ? $project->start_date->format('Y-m-d') : date('Y-m-d'));
+    $endDateVal = old('end_date', $project->end_date ? $project->end_date->format('Y-m-d') : date('Y-m-d', strtotime('+30 days')));
+    $targetTimeVal = old('target_time', $project->target_time ?? '07:30');
+    $excludeDaysVal = old('exclude_days', $project->exclude_days ?? []);
 
-    <!-- Breadcrumb -->
-    <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-gray-400">
-        <a href="{{ route('projects.index') }}" class="hover:text-slate-900 dark:hover:text-white transition flex items-center space-x-1">
-            <i class="fa-solid fa-layer-group"></i>
-            <span>Project Campaigns</span>
+    $projectTargets = [];
+    if ($project->relationLoaded('targets')) {
+        foreach ($project->targets as $t) {
+            $projectTargets[$t->connected_account_id] = $t->platform_target;
+        }
+    }
+
+    $existingMediaData = [];
+    if ($project->relationLoaded('mediaFiles')) {
+        $existingMediaData = $project->mediaFiles->map(function ($m) {
+            return [
+                'id' => $m->id,
+                'name' => $m->original_name,
+                'url' => $m->url,
+                'is_video' => (bool)$m->is_video,
+            ];
+        })->values()->all();
+    }
+@endphp
+
+@section('content')
+<div class="w-full space-y-5 max-w-7xl mx-auto">
+
+    <!-- Header & Breadcrumbs -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80 dark:border-gray-800/80">
+        <div>
+            <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-gray-400 mb-1">
+                <a href="{{ route('projects.index') }}" class="hover:text-slate-900 dark:hover:text-white transition flex items-center space-x-1">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <span>Campaigns</span>
+                </a>
+                <span>/</span>
+                <a href="{{ route('projects.show', $project->id) }}" class="hover:text-slate-900 dark:hover:text-white transition">{{ $project->name }}</a>
+                <span>/</span>
+                <span class="text-slate-900 dark:text-white font-medium">Edit Campaign</span>
+            </div>
+            <h1 class="text-xl font-bold text-slate-900 dark:text-white flex items-center space-x-2.5">
+                <span>Edit Campaign: {{ $project->name }}</span>
+            </h1>
+        </div>
+        <a href="{{ route('projects.show', $project->id) }}" 
+           class="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-lg border border-slate-200 dark:border-gray-800 bg-white dark:bg-slate-800/80 text-xs font-semibold text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-sm w-fit min-h-[44px]">
+            <i class="fa-solid fa-arrow-left text-[11px]"></i>
+            <span>Kembali ke Detail</span>
         </a>
-        <span>/</span>
-        <a href="{{ route('projects.show', $project->id) }}" class="hover:text-slate-900 dark:hover:text-white transition">{{ $project->name }}</a>
-        <span>/</span>
-        <span class="text-slate-900 dark:text-white font-semibold">Edit Campaign</span>
     </div>
 
-    <!-- Main Card Form -->
-    <div class="card-dark rounded-xl p-6 sm:p-8 shadow-xl border border-slate-200 dark:border-gray-800 space-y-6">
-        <div class="border-b border-slate-200 dark:border-gray-800 pb-4">
-            <h1 class="text-2xl font-bold text-slate-900 dark:text-white flex items-center space-x-3">
-                <div class="p-2.5 bg-gradient-to-tr from-indigo-600 to-purple-600 rounded-lg text-white text-lg">
-                    <i class="fa-solid fa-pen-to-square"></i>
-                </div>
-                <span>Edit Project Campaign</span>
-            </h1>
-            <p class="text-xs sm:text-sm text-slate-500 dark:text-gray-400 mt-1">
-                Perbarui konfigurasi target akun, waktu tayang, atau tambahkan materi media pool baru.
-            </p>
+    @if($accounts->isEmpty())
+        <div class="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 text-xs flex items-center space-x-3">
+            <i class="fa-solid fa-triangle-exclamation text-amber-500 text-base shrink-0"></i>
+            <div>
+                <strong class="block font-semibold">Belum ada akun Meta yang terhubung!</strong>
+                <span>Hubungkan akun terlebih dahulu di menu <a href="{{ route('settings.index', ['tab' => 'meta']) }}" class="underline font-bold text-amber-900 dark:text-white">Pengaturan (Integrasi Meta)</a> sebelum mengatur campaign.</span>
+            </div>
         </div>
+    @endif
 
-        <form id="formEditProject" enctype="multipart/form-data" class="space-y-6">
-            <input type="hidden" name="images_per_post" value="1">
+    <form id="formEditProject" enctype="multipart/form-data" class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <input type="hidden" name="images_per_post" value="1">
 
-            <!-- 1. Nama Project -->
-            <div>
-                <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider mb-2">Nama Project / Campaign</label>
-                <input type="text" name="name" value="{{ $project->name }}" required placeholder="Contoh: Campaign Pagi" 
-                       class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition">
-            </div>
+        <!-- ==================== KOLOM KIRI: DETAIL & JADWAL ==================== -->
+        <div class="lg:col-span-7 space-y-5">
+            
+            <!-- Card 1: Detail Campaign -->
+            <div class="card-dark rounded-xl p-5 sm:p-6 border border-slate-200 dark:border-gray-800 shadow-sm space-y-4">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-gray-300 flex items-center space-x-2 border-b border-slate-100 dark:border-gray-800 pb-3">
+                    <i class="fa-solid fa-sliders text-indigo-500"></i>
+                    <span>Informasi Campaign</span>
+                </h2>
 
-            <!-- 2. Tipe Konten: Story vs Feed Post -->
-            <div class="space-y-2">
-                <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider">Tipe Konten Publish</label>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <label class="flex items-center space-x-3 bg-slate-50 dark:bg-gray-900 p-4 rounded-lg border border-slate-200 dark:border-gray-700 cursor-pointer hover:border-indigo-500 transition">
-                        <input type="radio" name="content_type" value="story" {{ $project->content_type === 'story' ? 'checked' : '' }} class="text-indigo-600 focus:ring-indigo-500">
-                        <div>
-                            <div class="font-bold text-slate-900 dark:text-white flex items-center space-x-2">
-                                <i class="fa-solid fa-circle-notch text-pink-500"></i>
-                                <span>Story (Instagram & Facebook)</span>
-                            </div>
-                            <span class="text-[11px] text-slate-500 dark:text-gray-400">Format vertikal 9:16. Menghilang setelah 24 jam.</span>
-                        </div>
+                <!-- Nama Project -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                        Nama Campaign <span class="text-rose-500">*</span>
                     </label>
-
-                    <label class="flex items-center space-x-3 bg-slate-50 dark:bg-gray-900 p-4 rounded-lg border border-slate-200 dark:border-gray-700 cursor-pointer hover:border-indigo-500 transition">
-                        <input type="radio" name="content_type" value="post" {{ $project->content_type === 'post' ? 'checked' : '' }} class="text-indigo-600 focus:ring-indigo-500">
-                        <div>
-                            <div class="font-bold text-slate-900 dark:text-white flex items-center space-x-2">
-                                <i class="fa-solid fa-square-rss text-blue-500"></i>
-                                <span>Feed Post / Carousel / Reels</span>
-                            </div>
-                            <span class="text-[11px] text-slate-500 dark:text-gray-400">Postingan beranda permanen dengan caption dan multi-media.</span>
-                        </div>
-                    </label>
+                    <input type="text" name="name" required value="{{ old('name', $project->name) }}" placeholder="Contoh: Campaign Pagi (Promo & Quotes)" 
+                           class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition min-h-[44px]">
                 </div>
-            </div>
 
-            <!-- 3. Caption -->
-            <div>
-                <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider mb-2">Caption Konten</label>
-                <textarea name="caption" rows="3" placeholder="Tuliskan caption postingan..."
-                          class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition">{{ $project->caption }}</textarea>
-            </div>
+                <!-- Tipe Konten: Story vs Feed Post -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                        Tipe Konten Publish <span class="text-rose-500">*</span>
+                    </label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="content_type" value="story" {{ $selectedContentType === 'story' ? 'checked' : '' }} class="peer hidden" onchange="updateContentTypeHint()">
+                            <div class="p-3 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition flex items-center space-x-3 min-h-[44px]">
+                                <div class="w-8 h-8 rounded-lg bg-pink-500/10 text-pink-600 dark:text-pink-400 flex items-center justify-center text-sm shrink-0">
+                                    <i class="fa-solid fa-circle-notch"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="text-xs font-bold text-slate-900 dark:text-white">Story</div>
+                                    <div class="text-[10px] text-slate-500 dark:text-gray-400 truncate">Instagram & FB Story</div>
+                                </div>
+                            </div>
+                        </label>
 
-            <!-- 4. Target Akun & Kontrol Platform Per Akun -->
-            <div class="space-y-3">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider">Target Akun & Platform</label>
-                        <p class="text-[11px] text-slate-500 dark:text-gray-400">Pilih akun yang dituju dan tentukan platform tujuan per target.</p>
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="content_type" value="post" {{ $selectedContentType === 'post' ? 'checked' : '' }} class="peer hidden" onchange="updateContentTypeHint()">
+                            <div class="p-3 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition flex items-center space-x-3 min-h-[44px]">
+                                <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm shrink-0">
+                                    <i class="fa-solid fa-square-rss"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="text-xs font-bold text-slate-900 dark:text-white">Feed Post</div>
+                                    <div class="text-[10px] text-slate-500 dark:text-gray-400 truncate">Feed & Reels</div>
+                                </div>
+                            </div>
+                        </label>
                     </div>
                 </div>
 
-                @php
-                    $targetMap = $project->targets->keyBy('connected_account_id');
-                @endphp
+                <!-- Caption -->
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300">
+                            Caption Postingan
+                        </label>
+                        <span class="text-[10px] text-slate-400 dark:text-gray-500" id="captionHint">Opsional untuk Story</span>
+                    </div>
+                    <textarea name="caption" rows="3" placeholder="Tuliskan caption postingan atau hashtag di sini..."
+                              class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3.5 py-2 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition">{{ $captionVal }}</textarea>
+                </div>
+            </div>
 
-                <div class="bg-slate-50/80 dark:bg-gray-900/90 rounded-xl border border-slate-200 dark:border-gray-800 divide-y divide-slate-200 dark:divide-gray-800/80 overflow-hidden">
-                    @foreach($accounts as $acc)
+            <!-- Card 2: Jadwal & Waktu Tayang -->
+            <div class="card-dark rounded-xl p-5 sm:p-6 border border-slate-200 dark:border-gray-800 shadow-sm space-y-4">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-gray-300 flex items-center space-x-2 border-b border-slate-100 dark:border-gray-800 pb-3">
+                    <i class="fa-solid fa-calendar-days text-indigo-500"></i>
+                    <span>Jadwal dan Waktu Tayang</span>
+                </h2>
+
+                <!-- Moda Pengulangan (Repeat Mode) -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                        Moda Pengulangan <span class="text-rose-500">*</span>
+                    </label>
+                    <div class="grid grid-cols-3 gap-2 sm:gap-3">
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="repeat_type" value="continuous" {{ $selectedRepeatType === 'continuous' ? 'checked' : '' }} class="peer hidden" onchange="toggleRepeatFields()">
+                            <div class="p-2.5 sm:p-3 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition text-center min-h-[44px]">
+                                <div class="text-indigo-600 dark:text-indigo-400 text-sm mb-0.5"><i class="fa-solid fa-arrows-rotate"></i></div>
+                                <div class="text-xs font-bold text-slate-900 dark:text-white">Kontinu</div>
+                                <div class="text-[10px] text-slate-500 dark:text-gray-400 leading-tight">Rolling harian</div>
+                            </div>
+                        </label>
+
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="repeat_type" value="once" {{ $selectedRepeatType === 'once' ? 'checked' : '' }} class="peer hidden" onchange="toggleRepeatFields()">
+                            <div class="p-2.5 sm:p-3 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition text-center min-h-[44px]">
+                                <div class="text-amber-500 text-sm mb-0.5"><i class="fa-solid fa-bullseye"></i></div>
+                                <div class="text-xs font-bold text-slate-900 dark:text-white">1x Post</div>
+                                <div class="text-[10px] text-slate-500 dark:text-gray-400 leading-tight">Sekali tayang</div>
+                            </div>
+                        </label>
+
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="repeat_type" value="until_date" {{ $selectedRepeatType === 'until_date' ? 'checked' : '' }} class="peer hidden" onchange="toggleRepeatFields()">
+                            <div class="p-2.5 sm:p-3 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition text-center min-h-[44px]">
+                                <div class="text-purple-500 text-sm mb-0.5"><i class="fa-regular fa-calendar-check"></i></div>
+                                <div class="text-xs font-bold text-slate-900 dark:text-white">Hingga Tgl</div>
+                                <div class="text-[10px] text-slate-500 dark:text-gray-400 leading-tight">Rentang waktu</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Dynamic Date & Time Inputs -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="dateInputsContainer">
+                    <div id="startDateWrapper">
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 mb-1" id="startDateLabel">
+                            Mulai Tanggal <span class="text-rose-500">*</span>
+                        </label>
+                        <input type="date" name="start_date" id="inputStartDate" value="{{ $startDateVal }}" required
+                               class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition min-h-[44px]">
+                        <p id="startDateHelp" class="text-[10px] text-slate-400 dark:text-gray-500 mt-1">Jadwal dimulai dari tanggal ini ke depan.</p>
+                    </div>
+
+                    <div id="endDateWrapper" class="hidden">
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 mb-1">
+                            Sampai Tanggal <span class="text-rose-500">*</span>
+                        </label>
+                        <input type="date" name="end_date" id="inputEndDate" value="{{ $endDateVal }}" 
+                               class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition min-h-[44px]">
+                        <p class="text-[10px] text-slate-400 dark:text-gray-500 mt-1">Berhenti tayang setelah tanggal ini.</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 mb-1">
+                            Jam Tayang (WIB) <span class="text-rose-500">*</span>
+                        </label>
+                        <input type="time" name="target_time" id="inputTargetTime" value="{{ $targetTimeVal }}" required 
+                               class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition min-h-[44px]">
+                        <p id="onceTimeNotice" class="hidden text-[10px] text-amber-500 mt-1 font-medium">Khusus 1x: Min. 30 menit dari jam sekarang.</p>
+                    </div>
+                </div>
+
+                <!-- Exclude Days (Pill Style) -->
+                <div id="excludeDaysWrapper" class="pt-1">
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                        Kecualikan Hari (Hari Libur Posting)
+                    </label>
+                    <div class="flex flex-wrap gap-1.5 sm:gap-2">
                         @php
-                            $isSelected = $targetMap->has($acc->id);
-                            $selectedPlatform = $isSelected ? $targetMap->get($acc->id)->platform_target : 'both';
+                            $days = [
+                                0 => 'Minggu',
+                                1 => 'Senin',
+                                2 => 'Selasa',
+                                3 => 'Rabu',
+                                4 => 'Kamis',
+                                5 => 'Jumat',
+                                6 => 'Sabtu',
+                            ];
                         @endphp
-                        <div class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-100/60 dark:hover:bg-gray-800/30 transition">
-                            <label class="flex items-center space-x-3 cursor-pointer flex-grow">
-                                <input type="checkbox" name="selected_accounts[]" value="{{ $acc->id }}" {{ $isSelected ? 'checked' : '' }}
-                                       class="account-checkbox rounded text-indigo-600 focus:ring-indigo-500 bg-white dark:bg-gray-800 border-slate-300 dark:border-gray-700 w-4 h-4"
-                                       onchange="toggleTargetRow({{ $acc->id }})">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 flex items-center justify-center text-base flex-shrink-0">
-                                        <i class="fa-brands fa-facebook-f"></i>
-                                    </div>
-                                    <div>
-                                        <span class="font-bold text-slate-900 dark:text-white text-xs block leading-tight">{{ $acc->page_name }}</span>
-                                        <span class="text-[11px] text-slate-500 dark:text-gray-400">
+                        @foreach($days as $val => $dayName)
+                            <label class="cursor-pointer select-none">
+                                <input type="checkbox" name="exclude_days[]" value="{{ $val }}" {{ in_array($val, $excludeDaysVal) ? 'checked' : '' }} class="peer hidden">
+                                <span class="inline-flex items-center px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[11px] font-semibold text-slate-600 dark:text-gray-300 peer-checked:bg-rose-500 peer-checked:border-rose-500 peer-checked:text-white transition shadow-sm min-h-[36px]">
+                                    {{ $dayName }}
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
+                    <span class="text-[10px] text-slate-400 dark:text-gray-500 block mt-1.5">Hari bertanda merah dikecualikan dari jadwal posting.</span>
+                </div>
+
+                <!-- Notice Sinkronisasi Jadwal Otomatis -->
+                <div class="p-4 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 text-xs text-indigo-900 dark:text-indigo-200 flex items-start space-x-3">
+                    <i class="fa-solid fa-arrows-rotate text-indigo-600 dark:text-indigo-400 text-base mt-0.5 flex-shrink-0"></i>
+                    <div class="space-y-1">
+                        <strong class="font-bold block">Penyelarasan Jadwal Otomatis:</strong>
+                        <p class="text-[11px] text-indigo-800/90 dark:text-indigo-300">
+                            Jika Anda mengubah tanggal mulai, tanggal berakhir, jam tayang, atau hari libur: antrean jadwal pending yang belum tayang akan otomatis diselaraskan (jadwal di luar rentang baru atau pada hari libur akan dihapus, dan tanggal baru yang belum ada akan otomatis dibuat).
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== KOLOM KANAN: TARGET & MEDIA ==================== -->
+        <div class="lg:col-span-5 space-y-5">
+            
+            <!-- Card 3: Target Akun Meta -->
+            <div class="card-dark rounded-xl p-5 border border-slate-200 dark:border-gray-800 shadow-sm space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-gray-800 pb-2.5">
+                    <div>
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-gray-300 flex items-center space-x-2">
+                            <i class="fa-solid fa-bullseye text-indigo-500"></i>
+                            <span>Target Akun Meta</span>
+                        </h2>
+                        <span class="text-[10px] text-slate-500 dark:text-gray-400" id="selectedAccountCounter">Pilih akun tujuan</span>
+                    </div>
+                    <button type="button" onclick="toggleAllAccounts()" id="btnSelectAll" class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline">
+                        Pilih Semua
+                    </button>
+                </div>
+
+                <div class="space-y-1.5 max-h-56 overflow-y-auto pr-1 divide-y divide-slate-100 dark:divide-gray-800/60">
+                    @forelse($accounts as $acc)
+                        @php
+                            $isTargeted = isset($projectTargets[$acc->id]);
+                            $platformTarget = $projectTargets[$acc->id] ?? 'both';
+                        @endphp
+                        <div class="pt-2 first:pt-0">
+                            <div class="flex items-center justify-between gap-2 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-gray-800/40 transition">
+                                <label class="flex items-center space-x-2.5 cursor-pointer flex-grow min-w-0">
+                                    <input type="checkbox" name="selected_accounts[]" value="{{ $acc->id }}" 
+                                           {{ $isTargeted ? 'checked' : '' }}
+                                           class="account-checkbox rounded text-indigo-600 focus:ring-indigo-500 bg-white dark:bg-gray-800 border-slate-300 dark:border-gray-700 w-4 h-4 shrink-0"
+                                           onchange="toggleTargetRow({{ $acc->id }})">
+                                    <div class="min-w-0">
+                                        <span class="font-semibold text-xs text-slate-900 dark:text-white block truncate">{{ $acc->page_name }}</span>
+                                        <span class="text-[10px] text-slate-500 dark:text-gray-400 flex items-center space-x-1 truncate">
                                             @if($acc->ig_username)
-                                                <i class="fa-brands fa-instagram text-pink-500 ml-0.5 mr-1"></i>&#64;{{ $acc->ig_username }}
+                                                <i class="fa-brands fa-instagram text-pink-500"></i><span>&#64;{{ $acc->ig_username }}</span>
                                             @else
-                                                <span class="text-slate-400 dark:text-gray-500 italic">Tanpa Akun Instagram</span>
+                                                <span class="italic text-slate-400">Facebook Page</span>
                                             @endif
                                         </span>
                                     </div>
-                                </div>
-                            </label>
+                                </label>
 
-                            <div id="platformControl_{{ $acc->id }}" class="{{ $isSelected ? 'flex' : 'hidden' }} items-center space-x-2 pl-7 sm:pl-0">
-                                <span class="text-[11px] text-slate-500 dark:text-gray-400 font-medium">Platform:</span>
-                                <select name="platform_targets[{{ $acc->id }}]" class="bg-white dark:bg-gray-950 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition">
-                                    <option value="both" {{ $selectedPlatform === 'both' ? 'selected' : '' }}>Both (FB Page & Instagram)</option>
-                                    <option value="instagram_only" {{ $selectedPlatform === 'instagram_only' ? 'selected' : '' }}>Instagram Saja (Skip FB)</option>
-                                    <option value="facebook_only" {{ $selectedPlatform === 'facebook_only' ? 'selected' : '' }}>Facebook Page Saja (Skip IG)</option>
-                                </select>
+                                <div id="platformControl_{{ $acc->id }}" class="{{ $isTargeted ? '' : 'hidden' }} shrink-0">
+                                    <select name="platform_targets[{{ $acc->id }}]" class="bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-2 py-1 text-[11px] text-slate-800 dark:text-gray-200 focus:outline-none focus:border-indigo-500 transition">
+                                        <option value="both" {{ $platformTarget === 'both' ? 'selected' : '' }}>Both (FB & IG)</option>
+                                        <option value="instagram_only" {{ $platformTarget === 'instagram_only' ? 'selected' : '' }}>Instagram Saja</option>
+                                        <option value="facebook_only" {{ $platformTarget === 'facebook_only' ? 'selected' : '' }}>FB Page Saja</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
-                    @endforeach
+                    @empty
+                        <div class="p-4 text-center text-xs text-slate-400">
+                            Belum ada akun Meta yang terhubung.
+                        </div>
+                    @endforelse
                 </div>
             </div>
 
-            <!-- 5. Moda Pengulangan (Repeat Mode) -->
-            <div class="space-y-3">
-                <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider">Moda Pengulangan Posting (Repeat Mode)</label>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                    <label class="flex items-start space-x-3 bg-slate-50 dark:bg-gray-900 p-4 rounded-lg border border-slate-200 dark:border-gray-700 cursor-pointer hover:border-indigo-500 transition">
-                        <input type="radio" name="repeat_type" value="continuous" {{ $project->repeat_type === 'continuous' ? 'checked' : '' }} class="mt-0.5 text-indigo-600 focus:ring-indigo-500" onchange="toggleRepeatFields()">
-                        <div>
-                            <strong class="text-slate-900 dark:text-white block font-semibold">♾️ Kontinu Selamanya</strong>
-                            <span class="text-slate-500 dark:text-gray-400 text-[11px]">Tayang setiap hari tanpa henti secara otomatis.</span>
-                        </div>
-                    </label>
-
-                    <label class="flex items-start space-x-3 bg-slate-50 dark:bg-gray-900 p-4 rounded-lg border border-slate-200 dark:border-gray-700 cursor-pointer hover:border-indigo-500 transition">
-                        <input type="radio" name="repeat_type" value="once" {{ $project->repeat_type === 'once' ? 'checked' : '' }} class="mt-0.5 text-indigo-600 focus:ring-indigo-500" onchange="toggleRepeatFields()">
-                        <div>
-                            <strong class="text-slate-900 dark:text-white block font-semibold">🎯 Hanya 1x Post</strong>
-                            <span class="text-slate-500 dark:text-gray-400 text-[11px]">Posting 1 kali saja pada tanggal yang dipilih.</span>
-                        </div>
-                    </label>
-
-                    <label class="flex items-start space-x-3 bg-slate-50 dark:bg-gray-900 p-4 rounded-lg border border-slate-200 dark:border-gray-700 cursor-pointer hover:border-indigo-500 transition">
-                        <input type="radio" name="repeat_type" value="until_date" {{ $project->repeat_type === 'until_date' ? 'checked' : '' }} class="mt-0.5 text-indigo-600 focus:ring-indigo-500" onchange="toggleRepeatFields()">
-                        <div>
-                            <strong class="text-slate-900 dark:text-white block font-semibold">📅 Sampai Tanggal Tertentu</strong>
-                            <span class="text-slate-500 dark:text-gray-400 text-[11px]">Berulang harian hingga tanggal akhir campaign.</span>
-                        </div>
-                    </label>
+            <!-- Card 4: Unggah Materi Media Pool -->
+            <div class="card-dark rounded-xl p-5 border border-slate-200 dark:border-gray-800 shadow-sm space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-gray-800 pb-2.5">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-gray-300 flex items-center space-x-2">
+                        <i class="fa-solid fa-photo-film text-pink-500"></i>
+                        <span>Materi Media Pool</span>
+                    </h2>
+                    <span id="mediaCountBadge" class="text-xs font-bold text-indigo-600 dark:text-indigo-400">0 File</span>
                 </div>
-            </div>
 
-            <!-- Dynamic Date Inputs -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="dateInputsContainer">
-                <div id="startDateWrapper">
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider mb-2" id="startDateLabel">
-                        Mulai Tanggal Berapa (Posting Perdana) <span class="text-rose-500">*</span>
-                    </label>
-                    <input type="date" name="start_date" id="inputStartDate" value="{{ $project->start_date ? $project->start_date->format('Y-m-d') : date('Y-m-d') }}" required
-                           class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition">
-                    <p id="startDateHelp" class="text-[11px] text-slate-500 dark:text-gray-400 mt-1.5 flex items-center space-x-1.5">
-                        <i class="fa-regular fa-calendar text-indigo-600 dark:text-indigo-400"></i>
-                        <span>Jadwal posting harian akan mulai dibuat dari tanggal ini ke depan secara otomatis.</span>
+                <!-- Dropzone Area -->
+                <div id="dropzone" class="border-2 border-dashed border-slate-300 dark:border-gray-700 hover:border-indigo-500 dark:hover:border-indigo-500 rounded-xl p-5 text-center bg-slate-50/50 dark:bg-gray-900/50 transition cursor-pointer group min-h-[44px]">
+                    <input type="file" id="inputMediaFiles" multiple accept="image/jpeg,image/png,video/mp4,video/quicktime" class="hidden">
+                    <div class="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto text-lg mb-2 group-hover:scale-110 transition duration-200">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                    </div>
+                    <p class="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                        Klik untuk pilih file atau tarik kemari
                     </p>
+                    <p class="text-[10px] text-slate-400 dark:text-gray-500 mt-0.5">Format: JPG, PNG, MP4, MOV (Ditambahkan ke Pool)</p>
                 </div>
 
-                <div id="endDateWrapper" class="hidden">
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider mb-2">
-                        Sampai Tanggal Berapa (Tanggal Berakhir) <span class="text-rose-500">*</span>
-                    </label>
-                    <input type="date" name="end_date" value="{{ $project->end_date ? $project->end_date->format('Y-m-d') : date('Y-m-d', strtotime('+30 days')) }}" 
-                           class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition">
-                    <p class="text-[11px] text-slate-500 dark:text-gray-400 mt-1.5 flex items-center space-x-1.5">
-                        <i class="fa-regular fa-calendar-xmark text-rose-500"></i>
-                        <span>Campaign akan otomatis berhenti posting setelah tanggal ini.</span>
-                    </p>
+                <!-- Thumbnail Preview Grid -->
+                <div id="previewContainer" class="hidden space-y-2">
+                    <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-gray-400">
+                        <span>Preview Media:</span>
+                        <button type="button" onclick="clearAllMedia()" class="text-rose-500 hover:underline text-[10px]">Hapus Semua</button>
+                    </div>
+                    <div id="previewGrid" class="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-52 overflow-y-auto pr-1"></div>
                 </div>
             </div>
+        </div>
 
-            <!-- Jam Tayang Harian -->
-            <div>
-                <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider mb-2">Jam Tayang Posting Harian (HH:mm WIB)</label>
-                <input type="time" name="target_time" id="inputTargetTime" value="{{ $project->target_time }}" required 
-                       class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition">
-                <p id="onceTimeNotice" class="hidden text-[11px] text-amber-600 dark:text-amber-400 mt-1.5 flex items-center space-x-1">
-                    <i class="fa-solid fa-circle-info"></i>
-                    <span>Khusus mode 1x Post: Waktu tayang minimal <strong>30 menit dari jam sekarang</strong>.</span>
-                </p>
+        <!-- ==================== FOOTER / BOTTOM ACTION BAR ==================== -->
+        <div class="lg:col-span-12 card-dark rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-gray-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center space-x-2.5 text-xs text-slate-500 dark:text-gray-400">
+                <i class="fa-solid fa-circle-check text-indigo-500 text-sm shrink-0"></i>
+                <span>Pastikan seluruh konfigurasi campaign, target akun, dan media pool sudah lengkap sebelum menyimpan.</span>
             </div>
-
-            <!-- Exclude Days -->
-            @php
-                $exclude = $project->exclude_days ?? [];
-            @endphp
-            <div id="excludeDaysWrapper">
-                <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider mb-2">Kecualikan Hari (Jangan Posting Pada Hari Ini)</label>
-                <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3 text-xs">
-                    @php
-                        $days = [
-                            0 => 'Minggu',
-                            1 => 'Senin',
-                            2 => 'Selasa',
-                            3 => 'Rabu',
-                            4 => 'Kamis',
-                            5 => 'Jumat',
-                            6 => 'Sabtu',
-                        ];
-                    @endphp
-                    @foreach($days as $val => $dayName)
-                        <label class="flex items-center space-x-2 bg-slate-50 dark:bg-gray-900 p-3 rounded-lg border border-slate-200 dark:border-gray-800 cursor-pointer hover:border-indigo-500 dark:hover:border-gray-700 transition text-slate-700 dark:text-slate-200">
-                            <input type="checkbox" name="exclude_days[]" value="{{ $val }}" {{ in_array($val, $exclude) ? 'checked' : '' }} class="rounded text-indigo-600 bg-white dark:bg-gray-800 border-slate-300 dark:border-gray-700">
-                            <span>{{ $dayName }}</span>
-                        </label>
-                    @endforeach
-                </div>
-            </div>
-
-            <!-- Notice Sinkronisasi Jadwal Otomatis -->
-            <div class="p-4 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 text-xs text-indigo-900 dark:text-indigo-200 flex items-start space-x-3">
-                <i class="fa-solid fa-arrows-rotate text-indigo-600 dark:text-indigo-400 text-base mt-0.5 flex-shrink-0"></i>
-                <div class="space-y-1">
-                    <strong class="font-bold block">Penyelarasan Jadwal Otomatis:</strong>
-                    <p class="text-[11px] text-indigo-800/90 dark:text-indigo-300">
-                        Jika Anda mengubah tanggal mulai, tanggal berakhir, jam tayang, atau hari libur: antrean jadwal pending yang belum tayang akan otomatis diselaraskan (jadwal di luar rentang baru atau pada hari libur akan dihapus, dan tanggal baru yang belum ada akan otomatis dibuat).
-                    </p>
-                </div>
-            </div>
-
-            <!-- Existing Media Pool Preview -->
-            <div class="space-y-3">
-                <div class="flex items-center justify-between">
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider">Media Pool Saat Ini ({{ $project->mediaFiles->count() }} file)</label>
-                </div>
-                <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-                    @foreach($project->mediaFiles as $media)
-                        <div class="group relative bg-slate-50 dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-lg overflow-hidden shadow cursor-pointer transition hover:border-indigo-500"
-                             onclick="openLightboxDirect('{{ $media->url }}', {{ $media->is_video ? 'true' : 'false' }}, '{{ $media->original_name }}')">
-                            @if($media->is_video)
-                                <div class="w-full h-20 bg-slate-100 dark:bg-slate-900 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                                    <i class="fa-solid fa-video text-lg"></i>
-                                </div>
-                            @else
-                                <img src="{{ $media->url }}" class="w-full h-20 object-cover group-hover:scale-105 transition duration-300">
-                            @endif
-                            <div class="p-1.5 bg-slate-100 dark:bg-gray-950/90 text-[9px] text-slate-600 dark:text-gray-400 truncate font-mono border-t border-slate-200 dark:border-gray-800/60">
-                                {{ $media->original_name }}
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-
-            <!-- Upload Additional Media -->
-            <div class="space-y-3">
-                <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider">Tambah File Media Baru (Opsional)</label>
-                <div class="border-2 border-dashed border-slate-300 dark:border-gray-700 hover:border-indigo-500 rounded-xl p-4 text-center bg-slate-50/60 dark:bg-gray-900/60 transition">
-                    <input type="file" name="media_files[]" multiple accept="image/jpeg,image/png,video/mp4,video/quicktime" id="inputEditMediaFiles" class="hidden">
-                    <label for="inputEditMediaFiles" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 text-xs font-semibold rounded-lg border border-slate-300 dark:border-gray-700 cursor-pointer transition inline-block">
-                        <i class="fa-solid fa-cloud-arrow-up mr-1.5 text-indigo-600 dark:text-indigo-400"></i>Pilih File Baru Untuk Ditambahkan
-                    </label>
-                    <p class="text-[11px] text-slate-500 dark:text-gray-400 mt-1" id="editFileNotice">File baru akan digabung ke Media Pool yang sudah ada</p>
-                </div>
-            </div>
-
-            <!-- Form Action Buttons -->
-            <div class="pt-6 border-t border-slate-200 dark:border-gray-800 flex items-center justify-end space-x-4">
-                <a href="{{ route('projects.show', $project->id) }}" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 font-semibold rounded-lg text-xs transition">
+            <div class="flex items-center space-x-3 w-full sm:w-auto justify-end">
+                <a href="{{ route('projects.show', $project->id) }}" 
+                   class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 font-semibold rounded-lg text-xs transition text-center min-w-[90px] min-h-[44px] flex items-center justify-center">
                     Batal
                 </a>
-                <button type="submit" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs transition shadow-md flex items-center space-x-2">
+                <button type="submit" 
+                        class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs transition shadow-md flex items-center justify-center space-x-2 min-w-[170px] min-h-[44px]">
                     <i class="fa-solid fa-floppy-disk"></i>
                     <span>Simpan Perubahan Campaign</span>
                 </button>
             </div>
-        </form>
-    </div>
+        </div>
+    </form>
 </div>
 @endsection
 
 @section('scripts')
 <script>
+    // State Media Files
+    let selectedFiles = [];
+    let existingMedia = {!! json_encode($existingMediaData) !!};
+
+    lightboxItems = [];
+    currentLightboxIdx = 0;
+
+    // Dropzone & Media Handling
+    const dropzone = document.getElementById('dropzone');
+    const inputMediaFiles = document.getElementById('inputMediaFiles');
+    const previewContainer = document.getElementById('previewContainer');
+    const previewGrid = document.getElementById('previewGrid');
+    const mediaCountBadge = document.getElementById('mediaCountBadge');
+
+    if (dropzone) {
+        dropzone.addEventListener('click', () => inputMediaFiles.click());
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.add('border-indigo-500', 'bg-indigo-50/20');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('border-indigo-500', 'bg-indigo-50/20');
+            });
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            const files = Array.from(e.dataTransfer.files);
+            addFiles(files);
+        });
+
+        inputMediaFiles.addEventListener('change', function() {
+            const files = Array.from(this.files);
+            addFiles(files);
+            this.value = '';
+        });
+    }
+
+    function addFiles(files) {
+        const validExtensions = /\.(jpe?g|png|mp4|mov)$/i;
+        files.forEach(f => {
+            if (f.type.startsWith('image/') || f.type.startsWith('video/') || f.name.match(validExtensions)) {
+                if (!selectedFiles.some(existing => existing.name === f.name && existing.size === f.size)) {
+                    selectedFiles.push(f);
+                }
+            }
+        });
+        renderPreviews();
+    }
+
+    function removeExistingMedia(index, event) {
+        if (event) event.stopPropagation();
+        existingMedia.splice(index, 1);
+        renderPreviews();
+    }
+
+    function removeFile(index, event) {
+        if (event) event.stopPropagation();
+        selectedFiles.splice(index, 1);
+        renderPreviews();
+    }
+
+    function clearAllMedia() {
+        selectedFiles = [];
+        existingMedia = [];
+        renderPreviews();
+    }
+
+    function renderPreviews() {
+        previewGrid.innerHTML = '';
+        lightboxItems = [];
+
+        const totalCount = existingMedia.length + selectedFiles.length;
+
+        if (totalCount === 0) {
+            previewContainer.classList.add('hidden');
+            mediaCountBadge.textContent = '0 File';
+            return;
+        }
+
+        previewContainer.classList.remove('hidden');
+        mediaCountBadge.textContent = `${totalCount} File`;
+
+        // 1. Render Existing Media dari Project Saat Ini
+        existingMedia.forEach((m, index) => {
+            lightboxItems.push({
+                url: m.url,
+                name: m.name,
+                isVideo: !!m.is_video
+            });
+
+            const card = document.createElement('div');
+            card.className = 'group relative rounded-lg border border-indigo-300 dark:border-indigo-700/80 bg-slate-100 dark:bg-gray-800 overflow-hidden shadow-sm cursor-pointer aspect-square';
+
+            let mediaHtml = m.is_video 
+                ? `<video src="${m.url}" class="w-full h-full object-cover"></video>` 
+                : `<img src="${m.url}" class="w-full h-full object-cover group-hover:scale-105 transition duration-200">`;
+
+            card.innerHTML = `
+                ${mediaHtml}
+                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </div>
+                <button type="button" onclick="removeExistingMedia(${index}, event)" title="Hapus Dari Media Pool" class="absolute top-1 right-1 w-5 h-5 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center text-[10px] shadow z-10">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div class="absolute bottom-1 left-1 px-1 py-0.5 rounded bg-indigo-600/90 text-[8px] text-white font-mono flex items-center space-x-0.5 shadow-sm">
+                    <i class="fa-solid fa-check text-[7px]"></i>
+                    <span>TERPASANG</span>
+                </div>
+                ${m.is_video ? '<div class="absolute top-1 left-1 px-1 py-0.5 rounded bg-black/60 text-[8px] text-white font-mono flex items-center space-x-0.5"><i class="fa-solid fa-video text-[7px]"></i><span>VID</span></div>' : ''}
+            `;
+
+            const currentIdx = lightboxItems.length - 1;
+            card.onclick = () => {
+                currentLightboxIdx = currentIdx;
+                updateLightboxView();
+                document.getElementById('lightboxModal').classList.remove('hidden');
+            };
+
+            previewGrid.appendChild(card);
+        });
+
+        // 2. Render File Baru yang Diunggah
+        selectedFiles.forEach((file, index) => {
+            const fileUrl = URL.createObjectURL(file);
+            const isVideo = file.type.startsWith('video/') || file.name.match(/\.(mp4|mov)$/i);
+
+            lightboxItems.push({
+                url: fileUrl,
+                name: file.name,
+                isVideo: !!isVideo
+            });
+
+            const card = document.createElement('div');
+            card.className = 'group relative rounded-lg border border-slate-200 dark:border-gray-800 bg-slate-100 dark:bg-gray-800 overflow-hidden shadow-sm cursor-pointer aspect-square';
+
+            let mediaHtml = isVideo 
+                ? `<video src="${fileUrl}" class="w-full h-full object-cover"></video>` 
+                : `<img src="${fileUrl}" class="w-full h-full object-cover group-hover:scale-105 transition duration-200">`;
+
+            card.innerHTML = `
+                ${mediaHtml}
+                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </div>
+                <button type="button" onclick="removeFile(${index}, event)" title="Hapus File Baru" class="absolute top-1 right-1 w-5 h-5 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center text-[10px] shadow z-10">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div class="absolute bottom-1 left-1 px-1 py-0.5 rounded bg-emerald-600/90 text-[8px] text-white font-mono flex items-center space-x-0.5 shadow-sm">
+                    <i class="fa-solid fa-plus text-[7px]"></i>
+                    <span>BARU</span>
+                </div>
+                ${isVideo ? '<div class="absolute top-1 left-1 px-1 py-0.5 rounded bg-black/60 text-[8px] text-white font-mono flex items-center space-x-0.5"><i class="fa-solid fa-video text-[7px]"></i><span>VID</span></div>' : ''}
+            `;
+
+            const currentIdx = lightboxItems.length - 1;
+            card.onclick = () => {
+                currentLightboxIdx = currentIdx;
+                updateLightboxView();
+                document.getElementById('lightboxModal').classList.remove('hidden');
+            };
+
+            previewGrid.appendChild(card);
+        });
+    }
+
+    // Account Target Selection Handling
     function toggleTargetRow(accId) {
         const checkbox = document.querySelector(`input[value="${accId}"]`);
         const ctrl = document.getElementById(`platformControl_${accId}`);
         if (checkbox && ctrl) {
             if (checkbox.checked) {
                 ctrl.classList.remove('hidden');
-                ctrl.classList.add('flex');
             } else {
                 ctrl.classList.add('hidden');
-                ctrl.classList.remove('flex');
             }
+        }
+        updateAccountCounter();
+    }
+
+    function toggleAllAccounts() {
+        const checkboxes = Array.from(document.querySelectorAll('.account-checkbox'));
+        const allChecked = checkboxes.length > 0 && checkboxes.every(cb => cb.checked);
+        const targetState = !allChecked;
+
+        checkboxes.forEach(cb => {
+            cb.checked = targetState;
+            toggleTargetRow(cb.value);
+        });
+    }
+
+    function updateAccountCounter() {
+        const checked = document.querySelectorAll('.account-checkbox:checked').length;
+        const total = document.querySelectorAll('.account-checkbox').length;
+        const counter = document.getElementById('selectedAccountCounter');
+        const btnSelectAll = document.getElementById('btnSelectAll');
+
+        if (counter) {
+            counter.textContent = checked > 0 ? `${checked} dari ${total} akun dipilih` : 'Pilih akun tujuan';
+        }
+        if (btnSelectAll) {
+            btnSelectAll.textContent = (checked === total && total > 0) ? 'Batal Semua' : 'Pilih Semua';
         }
     }
 
+    // Repeat Mode Handling
     function toggleRepeatFields() {
-        const repeatType = document.querySelector('input[name="repeat_type"]:checked').value;
+        const checkedRepeat = document.querySelector('input[name="repeat_type"]:checked');
+        if (!checkedRepeat) return;
+        const repeatType = checkedRepeat.value;
         const startWrapper = document.getElementById('startDateWrapper');
         const endWrapper = document.getElementById('endDateWrapper');
         const startLabel = document.getElementById('startDateLabel');
         const startHelp = document.getElementById('startDateHelp');
         const excludeDaysWrapper = document.getElementById('excludeDaysWrapper');
         const onceNotice = document.getElementById('onceTimeNotice');
-
-        // Mulai Tanggal Berapa SELALU TAMPIL
-        startWrapper.classList.remove('hidden');
+        const timeInput = document.getElementById('inputTargetTime');
 
         if (repeatType === 'continuous') {
             endWrapper.classList.add('hidden');
-            startLabel.innerHTML = 'Mulai Tanggal Berapa (Posting Perdana) <span class="text-rose-400">*</span>';
-            startHelp.innerHTML = '<i class="fa-regular fa-calendar text-indigo-400 mr-1"></i>Jadwal posting harian akan mulai dibuat dari tanggal ini ke depan secara otomatis.';
+            startLabel.innerHTML = 'Mulai Tanggal <span class="text-rose-500">*</span>';
+            startHelp.textContent = 'Jadwal dimulai dari tanggal ini ke depan.';
             excludeDaysWrapper.classList.remove('hidden');
             onceNotice.classList.add('hidden');
         } else if (repeatType === 'once') {
             endWrapper.classList.add('hidden');
-            startLabel.innerHTML = 'Tanggal Tayang (Hanya 1x Post) <span class="text-rose-400">*</span>';
-            startHelp.innerHTML = '<i class="fa-regular fa-clock text-amber-400 mr-1"></i>Konten hanya akan dipublikasikan satu kali pada tanggal ini.';
+            startLabel.innerHTML = 'Tanggal Tayang <span class="text-rose-500">*</span>';
+            startHelp.textContent = 'Konten tayang 1 kali pada tanggal ini.';
             excludeDaysWrapper.classList.add('hidden');
             onceNotice.classList.remove('hidden');
+
+            if (!timeInput.value) {
+                const now = new Date();
+                now.setMinutes(now.getMinutes() + 35);
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                timeInput.value = `${hours}:${minutes}`;
+            }
         } else if (repeatType === 'until_date') {
             endWrapper.classList.remove('hidden');
-            startLabel.innerHTML = 'Mulai Tanggal Berapa <span class="text-rose-400">*</span>';
-            startHelp.innerHTML = '<i class="fa-regular fa-calendar text-indigo-400 mr-1"></i>Tanggal dimulainya jadwal posting harian.';
+            startLabel.innerHTML = 'Mulai Tanggal <span class="text-rose-500">*</span>';
+            startHelp.textContent = 'Tanggal dimulainya jadwal posting.';
             excludeDaysWrapper.classList.remove('hidden');
             onceNotice.classList.add('hidden');
         }
     }
 
+    function updateContentTypeHint() {
+        const checkedContent = document.querySelector('input[name="content_type"]:checked');
+        if (!checkedContent) return;
+        const contentType = checkedContent.value;
+        const hint = document.getElementById('captionHint');
+        if (hint) {
+            hint.textContent = contentType === 'story' ? 'Opsional untuk Story' : 'Disarankan untuk Feed Post';
+        }
+    }
+
+    // Initialize state on page load
     toggleRepeatFields();
+    updateAccountCounter();
+    updateContentTypeHint();
+    if (existingMedia.length > 0) {
+        renderPreviews();
+    }
 
-    document.getElementById('inputEditMediaFiles').addEventListener('change', function() {
-        const count = this.files.length;
-        document.getElementById('editFileNotice').textContent = count > 0 ? `👍 ${count} file baru dipilih dan siap diunggah` : 'File baru akan digabung ke Media Pool';
-    });
-
+    // Form Submit Handling
     document.getElementById('formEditProject').addEventListener('submit', function(e) {
         e.preventDefault();
 
         const selectedAccounts = Array.from(document.querySelectorAll('.account-checkbox:checked'));
         if (selectedAccounts.length === 0) {
-            showAlert('warning', 'Pilih Target Akun', 'Silakan centang minimal 1 akun target Meta.');
+            showAlert('warning', 'Pilih Target Akun', 'Silakan centang minimal 1 akun target Meta untuk campaign ini.');
+            return;
+        }
+
+        if (selectedFiles.length === 0 && existingMedia.length === 0) {
+            showAlert('warning', 'Unggah Media', 'Silakan pilih atau tarik minimal 1 file gambar atau video ke area Media Pool.');
             return;
         }
 
         const formData = new FormData(this);
         formData.append('_method', 'PUT');
 
+        // Append targets payload
         selectedAccounts.forEach((cb, idx) => {
             const accId = cb.value;
             const platformSelect = document.querySelector(`select[name="platform_targets[${accId}]"]`);
@@ -364,7 +667,17 @@
             formData.append(`targets[${idx}][platform_target]`, platformVal);
         });
 
-        showLoading('Menyimpan Perubahan...', 'Memperbarui konfigurasi campaign...');
+        // Append existing media IDs yang dipertahankan
+        existingMedia.forEach((m) => {
+            formData.append('existing_media_ids[]', m.id);
+        });
+
+        // Append media files baru yang diupload
+        selectedFiles.forEach((f) => {
+            formData.append('media_files[]', f);
+        });
+
+        showLoading('Menyimpan Perubahan...', 'Memperbarui konfigurasi campaign dan menyinkronkan antrean jadwal...');
 
         fetch("{{ route('projects.update', $project->id) }}", {
             method: 'POST',
@@ -377,10 +690,10 @@
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                showAlert('success', 'Campaign Diperbarui!', data.message);
+                showAlert('success', 'Campaign Berhasil Diperbarui!', data.message);
                 setTimeout(() => window.location.href = data.redirect || "{{ route('projects.show', $project->id) }}", 1500);
             } else {
-                showAlert('error', 'Gagal Memperbarui', data.message);
+                showAlert('error', 'Gagal Memperbarui Campaign', data.message);
             }
         })
         .catch(err => {

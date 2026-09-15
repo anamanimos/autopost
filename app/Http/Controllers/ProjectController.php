@@ -293,10 +293,26 @@ class ProjectController extends Controller
                 ]);
             }
 
-            // Tambahkan media baru jika diupload
-            if ($request->hasFile('media_files')) {
-                $newMediaIds = $this->handleMediaUploads($request->file('media_files'));
-                $project->mediaFiles()->attach($newMediaIds);
+            // Sync Media Pool (gabungan existing yang dipertahankan dan upload baru)
+            $existingMediaIds = array_map('intval', $request->input('existing_media_ids', []));
+            $hasNewFiles = $request->hasFile('media_files');
+
+            if ($request->has('existing_media_ids') || $hasNewFiles) {
+                $allMediaIds = $existingMediaIds;
+                if ($hasNewFiles) {
+                    $newMediaIds = $this->handleMediaUploads($request->file('media_files'));
+                    $allMediaIds = array_merge($allMediaIds, $newMediaIds);
+                }
+
+                if (empty($allMediaIds)) {
+                    $msg = 'Minimal harus ada 1 file media pool untuk campaign ini.';
+                    if ($request->ajax() || $request->wantsJson()) {
+                        return response()->json(['success' => false, 'message' => $msg], 422);
+                    }
+                    return redirect()->back()->with('error', $msg);
+                }
+
+                $project->mediaFiles()->sync(array_unique($allMediaIds));
             }
 
             // Sinkronkan jadwal otomatis (sesuaikan batas tanggal, hari libur, jam tayang, & buffer)

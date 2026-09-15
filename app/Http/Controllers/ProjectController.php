@@ -16,24 +16,51 @@ class ProjectController extends Controller
 {
     public function index(Request $request)
     {
-        $projects = ProjectCampaign::with([
+        $sort = $request->get('sort', 'created_at');
+        $direction = strtolower($request->get('direction', ''));
+
+        $allowedSorts = ['name', 'content_type', 'target_time', 'status', 'created_at'];
+        if (!in_array($sort, $allowedSorts)) {
+            $sort = 'created_at';
+        }
+
+        if (!in_array($direction, ['asc', 'desc'])) {
+            $direction = match($sort) {
+                'created_at' => 'desc',
+                default => 'asc',
+            };
+        }
+
+        $query = ProjectCampaign::with([
             'targets.connectedAccount',
             'mediaFiles',
             'schedules' => function ($q) {
                 $q->where('status', 'pending')->orderBy('target_date');
             },
-        ])->latest()->get();
+        ]);
+
+        $query->orderBy($sort, $direction);
+        if ($sort !== 'id') {
+            $query->orderBy('id', 'desc');
+        }
+
+        $projects = $query->get();
 
         $accounts = ConnectedAccount::where('is_active', true)->orderBy('page_name')->get();
+
+        $currentSort = $sort;
+        $currentDirection = $direction;
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'projects' => $projects,
                 'accounts' => $accounts,
+                'sort' => $currentSort,
+                'direction' => $currentDirection,
             ]);
         }
 
-        return view('projects.index', compact('projects', 'accounts'));
+        return view('projects.index', compact('projects', 'accounts', 'currentSort', 'currentDirection'));
     }
 
     public function create(Request $request)
@@ -48,18 +75,31 @@ class ProjectController extends Controller
         return view('projects.create', compact('accounts', 'sourceProject'));
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $project = ProjectCampaign::findOrFail($id);
 
         // Self-healing: bersihkan jadwal pending yang sudah tidak valid (misal setelah end_date diperbarui atau exclude_days)
         (new MaintainScheduleBufferCommand())->pruneOrphanedSchedules($project);
 
+        $scheduleSort = $request->get('sort', 'date');
+        $scheduleDirection = strtolower($request->get('direction', ''));
+        if (!in_array($scheduleSort, ['date', 'status'])) {
+            $scheduleSort = 'date';
+        }
+        if (!in_array($scheduleDirection, ['asc', 'desc'])) {
+            $scheduleDirection = 'asc';
+        }
+
         $project->load([
             'targets.connectedAccount',
             'mediaFiles',
-            'schedules' => function ($q) {
-                $q->orderBy('target_date', 'asc');
+            'schedules' => function ($q) use ($scheduleSort, $scheduleDirection) {
+                if ($scheduleSort === 'status') {
+                    $q->orderBy('status', $scheduleDirection)->orderBy('target_date', 'asc');
+                } else {
+                    $q->orderBy('target_date', $scheduleDirection)->orderBy('target_time', $scheduleDirection);
+                }
             },
             'publishLogs' => function ($q) {
                 $q->with('connectedAccount')->latest('executed_at')->take(50);
@@ -73,7 +113,10 @@ class ProjectController extends Controller
         $completedCount = $project->schedules()->where('status', 'completed')->count();
         $failedCount = $project->schedules()->whereIn('status', ['failed', 'partially_failed'])->count();
 
-        return view('projects.show', compact('project', 'furthestDateFormatted', 'pendingCount', 'completedCount', 'failedCount'));
+        $currentSort = $scheduleSort;
+        $currentDirection = $scheduleDirection;
+
+        return view('projects.show', compact('project', 'furthestDateFormatted', 'pendingCount', 'completedCount', 'failedCount', 'currentSort', 'currentDirection'));
     }
 
     public function edit($id)

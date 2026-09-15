@@ -130,10 +130,27 @@
         </button>
     </div>
 
-    <!-- Results Count -->
-    <div x-show="hasActiveFilters || searchQuery" class="text-[11px] text-slate-500 dark:text-gray-400 flex items-center justify-between">
-        <span>Menampilkan <strong class="text-slate-800 dark:text-gray-200" x-text="filteredCount"></strong> dari <strong>{{ $projects->count() }}</strong> campaign</span>
-        <span x-show="searchQuery" class="italic text-slate-400">Pencarian: "<span x-text="searchQuery"></span>"</span>
+    <!-- Results Count & Sorting Selector -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-gray-400">
+        <div>
+            <span x-show="hasActiveFilters || searchQuery">Menampilkan <strong class="text-slate-800 dark:text-gray-200" x-text="filteredCount"></strong> dari </span><strong>{{ $projects->count() }}</strong> campaign
+            <span x-show="searchQuery" class="italic text-slate-400"> (Pencarian: "<span x-text="searchQuery"></span>")</span>
+        </div>
+        <div class="flex items-center space-x-2 self-end sm:self-auto">
+            <label for="project-sort-selector" class="text-slate-500 font-medium flex items-center space-x-1">
+                <i class="fa-solid fa-arrow-down-short-wide text-indigo-500"></i>
+                <span>Urutkan:</span>
+            </label>
+            <select id="project-sort-selector" onchange="window.location.href=this.value" 
+                    class="text-xs bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded-lg px-2.5 py-1 font-medium text-slate-700 dark:text-gray-200 focus:ring-1 focus:ring-indigo-500">
+                <option value="{{ request()->fullUrlWithQuery(['sort' => 'created_at', 'direction' => 'desc', 'page' => 1]) }}" {{ (($currentSort ?? request('sort', 'created_at')) === 'created_at' && ($currentDirection ?? request('direction', 'desc')) === 'desc') ? 'selected' : '' }}>Terbaru Dibuat</option>
+                <option value="{{ request()->fullUrlWithQuery(['sort' => 'created_at', 'direction' => 'asc', 'page' => 1]) }}" {{ (($currentSort ?? request('sort')) === 'created_at' && ($currentDirection ?? request('direction')) === 'asc') ? 'selected' : '' }}>Terlama Dibuat</option>
+                <option value="{{ request()->fullUrlWithQuery(['sort' => 'name', 'direction' => 'asc', 'page' => 1]) }}" {{ (($currentSort ?? request('sort')) === 'name' && ($currentDirection ?? request('direction')) === 'asc') ? 'selected' : '' }}>Nama Campaign (A-Z)</option>
+                <option value="{{ request()->fullUrlWithQuery(['sort' => 'name', 'direction' => 'desc', 'page' => 1]) }}" {{ (($currentSort ?? request('sort')) === 'name' && ($currentDirection ?? request('direction')) === 'desc') ? 'selected' : '' }}>Nama Campaign (Z-A)</option>
+                <option value="{{ request()->fullUrlWithQuery(['sort' => 'target_time', 'direction' => 'asc', 'page' => 1]) }}" {{ (($currentSort ?? request('sort')) === 'target_time' && ($currentDirection ?? request('direction')) === 'asc') ? 'selected' : '' }}>Jam Tayang (Pagi - Malam)</option>
+                <option value="{{ request()->fullUrlWithQuery(['sort' => 'status', 'direction' => 'asc', 'page' => 1]) }}" {{ (($currentSort ?? request('sort')) === 'status' && ($currentDirection ?? request('direction')) === 'asc') ? 'selected' : '' }}>Status (Aktif Dulu)</option>
+            </select>
+        </div>
     </div>
 
     @if($projects->isEmpty())
@@ -323,11 +340,11 @@
                     <thead>
                         <tr class="bg-slate-50/80 dark:bg-gray-900/80 border-b border-slate-200 dark:border-gray-800">
                             <th class="px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Media</th>
-                            <th class="px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Nama Campaign</th>
-                            <th class="px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Tipe</th>
+                            <x-sort-th field="name" label="Nama Campaign" :currentSort="$currentSort ?? request('sort')" :currentDirection="$currentDirection ?? request('direction')" defaultDirection="asc" class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider" />
+                            <x-sort-th field="content_type" label="Tipe" :currentSort="$currentSort ?? request('sort')" :currentDirection="$currentDirection ?? request('direction')" defaultDirection="asc" class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider" />
                             <th class="px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Platform</th>
-                            <th class="px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Jam Tayang</th>
-                            <th class="px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                            <x-sort-th field="target_time" label="Jam Tayang" :currentSort="$currentSort ?? request('sort')" :currentDirection="$currentDirection ?? request('direction')" defaultDirection="asc" class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider" />
+                            <x-sort-th field="status" label="Status" :currentSort="$currentSort ?? request('sort')" :currentDirection="$currentDirection ?? request('direction')" defaultDirection="asc" class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider" />
                             <th class="px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Pending</th>
                             <th class="px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider text-right">Aksi</th>
                         </tr>

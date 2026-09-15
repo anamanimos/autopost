@@ -155,11 +155,11 @@
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="border-b border-slate-200 dark:border-gray-800 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400">
-                            <th class="py-3.5 px-4">Pengguna</th>
-                            <th class="py-3.5 px-4">Peran</th>
-                            <th class="py-3.5 px-4">Status Akun</th>
-                            <th class="py-3.5 px-4">Login Terakhir</th>
-                            <th class="py-3.5 px-4">Dibuat Pada</th>
+                            <x-sort-th field="name" label="Pengguna" :currentSort="$currentSort ?? request('sort')" :currentDirection="$currentDirection ?? request('direction')" defaultDirection="asc" class="py-3.5 px-4" />
+                            <x-sort-th field="role" label="Peran" :currentSort="$currentSort ?? request('sort')" :currentDirection="$currentDirection ?? request('direction')" defaultDirection="asc" class="py-3.5 px-4" />
+                            <x-sort-th field="status" label="Status Akun" :currentSort="$currentSort ?? request('sort')" :currentDirection="$currentDirection ?? request('direction')" defaultDirection="asc" class="py-3.5 px-4" />
+                            <x-sort-th field="last_login_at" label="Login Terakhir" :currentSort="$currentSort ?? request('sort')" :currentDirection="$currentDirection ?? request('direction')" defaultDirection="desc" class="py-3.5 px-4" />
+                            <x-sort-th field="created_at" label="Dibuat Pada" :currentSort="$currentSort ?? request('sort')" :currentDirection="$currentDirection ?? request('direction')" defaultDirection="desc" class="py-3.5 px-4" />
                             <th class="py-3.5 px-4 text-right">Aksi</th>
                         </tr>
                     </thead>
@@ -287,6 +287,23 @@
 
             <!-- ========== MOBILE CARD VIEW (visible only on mobile screens < md) ========== -->
             <div class="block md:hidden divide-y divide-slate-200/80 dark:divide-gray-800/80">
+                <!-- Mobile Sort Selector -->
+                <div class="p-3 bg-slate-50/80 dark:bg-gray-900/60 flex items-center justify-between border-b border-slate-200/80 dark:border-gray-800/80">
+                    <label for="mobile-user-sort" class="text-[11px] font-semibold text-slate-500 dark:text-gray-400 flex items-center space-x-1.5">
+                        <i class="fa-solid fa-arrow-down-short-wide text-indigo-500"></i>
+                        <span>Urutan Pengguna:</span>
+                    </label>
+                    <select id="mobile-user-sort" onchange="window.location.href=this.value" 
+                            class="text-xs bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded-lg px-2.5 py-1.5 font-medium text-slate-700 dark:text-gray-200 focus:ring-1 focus:ring-indigo-500">
+                        <option value="{{ request()->fullUrlWithQuery(['sort' => null, 'direction' => null, 'page' => 1]) }}" {{ empty($currentSort ?? request('sort')) ? 'selected' : '' }}>Default (Pending & Role)</option>
+                        <option value="{{ request()->fullUrlWithQuery(['sort' => 'name', 'direction' => 'asc', 'page' => 1]) }}" {{ (($currentSort ?? request('sort')) === 'name' && ($currentDirection ?? request('direction')) === 'asc') ? 'selected' : '' }}>Nama A-Z</option>
+                        <option value="{{ request()->fullUrlWithQuery(['sort' => 'name', 'direction' => 'desc', 'page' => 1]) }}" {{ (($currentSort ?? request('sort')) === 'name' && ($currentDirection ?? request('direction')) === 'desc') ? 'selected' : '' }}>Nama Z-A</option>
+                        <option value="{{ request()->fullUrlWithQuery(['sort' => 'role', 'direction' => 'asc', 'page' => 1]) }}" {{ (($currentSort ?? request('sort')) === 'role' && ($currentDirection ?? request('direction')) === 'asc') ? 'selected' : '' }}>Peran (Admin dulu)</option>
+                        <option value="{{ request()->fullUrlWithQuery(['sort' => 'status', 'direction' => 'asc', 'page' => 1]) }}" {{ (($currentSort ?? request('sort')) === 'status' && ($currentDirection ?? request('direction')) === 'asc') ? 'selected' : '' }}>Status Akun</option>
+                        <option value="{{ request()->fullUrlWithQuery(['sort' => 'last_login_at', 'direction' => 'desc', 'page' => 1]) }}" {{ (($currentSort ?? request('sort')) === 'last_login_at' && ($currentDirection ?? request('direction')) === 'desc') ? 'selected' : '' }}>Login Terbaru</option>
+                        <option value="{{ request()->fullUrlWithQuery(['sort' => 'created_at', 'direction' => 'desc', 'page' => 1]) }}" {{ (($currentSort ?? request('sort')) === 'created_at' && ($currentDirection ?? request('direction')) === 'desc') ? 'selected' : '' }}>Terbaru Didaftarkan</option>
+                    </select>
+                </div>
                 @foreach($users as $user)
                     <div class="p-4 space-y-3"
                          x-show="matchesSearch('{{ strtolower(addslashes($user->name . ' ' . $user->email . ' ' . ($user->phone ?? ''))) }}')">

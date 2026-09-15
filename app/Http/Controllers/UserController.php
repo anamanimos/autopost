@@ -43,11 +43,34 @@ class UserController extends Controller
             $query->where('status', $request->status);
         }
 
-        $users = $query->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
-            ->orderBy('role', 'asc')
-            ->orderBy('name', 'asc')
-            ->paginate(12)
-            ->withQueryString();
+        // Sorting
+        $allowedSorts = ['name', 'role', 'status', 'last_login_at', 'created_at'];
+        $sort = $request->get('sort');
+        $direction = strtolower($request->get('direction', ''));
+
+        if ($sort && in_array($sort, $allowedSorts)) {
+            if (!in_array($direction, ['asc', 'desc'])) {
+                $direction = match($sort) {
+                    'last_login_at', 'created_at' => 'desc',
+                    default => 'asc',
+                };
+            }
+            $query->orderBy($sort, $direction);
+            if ($sort !== 'id') {
+                $query->orderBy('id', 'desc');
+            }
+        } else {
+            $sort = null;
+            $direction = null;
+            $query->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
+                ->orderBy('role', 'asc')
+                ->orderBy('name', 'asc');
+        }
+
+        $users = $query->paginate(12)->withQueryString();
+
+        $currentSort = $sort;
+        $currentDirection = $direction;
 
         return view('users.index', compact(
             'users',
@@ -55,7 +78,9 @@ class UserController extends Controller
             'totalAdmins',
             'totalOperators',
             'activeUsers',
-            'pendingUsers'
+            'pendingUsers',
+            'currentSort',
+            'currentDirection'
         ));
     }
 

@@ -252,8 +252,8 @@
                 <thead class="bg-slate-100/90 dark:bg-gray-900/80 text-slate-600 dark:text-gray-400 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-200 dark:border-gray-800">
                     <tr>
                         <th class="py-3 px-4">Media</th>
-                        <th class="py-3 px-4">Tanggal & Jam Tayang</th>
-                        <th class="py-3 px-4">Status</th>
+                        <x-sort-th field="date" label="Tanggal & Jam Tayang" :currentSort="$currentSort ?? request('sort', 'date')" :currentDirection="$currentDirection ?? request('direction', 'asc')" defaultDirection="asc" class="py-3 px-4 text-[10px] font-semibold tracking-wider uppercase" />
+                        <x-sort-th field="status" label="Status" :currentSort="$currentSort ?? request('sort')" :currentDirection="$currentDirection ?? request('direction')" defaultDirection="asc" class="py-3 px-4 text-[10px] font-semibold tracking-wider uppercase" />
                         <th class="py-3 px-4">Catatan Eksekusi</th>
                         <th class="py-3 px-4 text-right">Aksi</th>
                     </tr>
@@ -359,6 +359,20 @@
 
         <!-- ========== MOBILE CARD VIEW FOR SCHEDULES (visible on mobile < md) ========== -->
         <div class="block md:hidden divide-y divide-slate-200/80 dark:divide-gray-800/60">
+            <!-- Mobile Sort Selector -->
+            <div class="py-2.5 flex items-center justify-between text-xs">
+                <label for="mobile-proj-sched-sort" class="text-[11px] font-semibold text-slate-500 dark:text-gray-400 flex items-center space-x-1.5">
+                    <i class="fa-solid fa-arrow-down-short-wide text-indigo-500"></i>
+                    <span>Urutan Jadwal:</span>
+                </label>
+                <select id="mobile-proj-sched-sort" onchange="window.location.href=this.value" 
+                        class="text-xs bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded-lg px-2 py-1 font-medium text-slate-700 dark:text-gray-200 focus:ring-1 focus:ring-indigo-500">
+                    <option value="{{ request()->fullUrlWithQuery(['sort' => 'date', 'direction' => 'asc']) }}" {{ (($currentSort ?? request('sort', 'date')) === 'date' && ($currentDirection ?? request('direction', 'asc')) === 'asc') ? 'selected' : '' }}>Tanggal Terlama ↑</option>
+                    <option value="{{ request()->fullUrlWithQuery(['sort' => 'date', 'direction' => 'desc']) }}" {{ (($currentSort ?? request('sort')) === 'date' && ($currentDirection ?? request('direction')) === 'desc') ? 'selected' : '' }}>Tanggal Terbaru ↓</option>
+                    <option value="{{ request()->fullUrlWithQuery(['sort' => 'status', 'direction' => 'asc']) }}" {{ (($currentSort ?? request('sort')) === 'status' && ($currentDirection ?? request('direction')) === 'asc') ? 'selected' : '' }}>Status A-Z</option>
+                    <option value="{{ request()->fullUrlWithQuery(['sort' => 'status', 'direction' => 'desc']) }}" {{ (($currentSort ?? request('sort')) === 'status' && ($currentDirection ?? request('direction')) === 'desc') ? 'selected' : '' }}>Status Z-A</option>
+                </select>
+            </div>
             @forelse($project->schedules as $sch)
                 <div class="py-3.5 space-y-3">
                     <div class="flex items-start justify-between gap-3">

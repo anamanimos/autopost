@@ -227,10 +227,10 @@
                     <thead class="bg-slate-100/90 dark:bg-gray-900/80 text-slate-600 dark:text-gray-400 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-200 dark:border-gray-800">
                         <tr>
                             <th class="py-3.5 px-4">Media</th>
-                            <th class="py-3.5 px-4">Campaign & Tipe</th>
-                            <th class="py-3.5 px-4">Jadwal Tayang</th>
+                            <x-sort-th field="campaign" label="Campaign & Tipe" :currentSort="$currentSort ?? request('sort')" :currentDirection="$currentDirection ?? request('direction')" defaultDirection="asc" />
+                            <x-sort-th field="date" label="Jadwal Tayang" :currentSort="$currentSort ?? request('sort')" :currentDirection="$currentDirection ?? request('direction')" defaultDirection="desc" />
                             <th class="py-3.5 px-4">Target Akun</th>
-                            <th class="py-3.5 px-4">Status</th>
+                            <x-sort-th field="status" label="Status" :currentSort="$currentSort ?? request('sort')" :currentDirection="$currentDirection ?? request('direction')" defaultDirection="asc" />
                             <th class="py-3.5 px-4 text-right">Aksi</th>
                         </tr>
                     </thead>
@@ -411,6 +411,22 @@
 
             <!-- ========== MOBILE CARD VIEW (visible only on mobile screens < md) ========== -->
             <div class="block md:hidden divide-y divide-slate-200/80 dark:divide-gray-800/80">
+                <!-- Mobile Sort Selector -->
+                <div class="p-3 bg-slate-50/80 dark:bg-gray-900/60 flex items-center justify-between border-b border-slate-200/80 dark:border-gray-800/80">
+                    <label for="mobile-schedule-sort" class="text-[11px] font-semibold text-slate-500 dark:text-gray-400 flex items-center space-x-1.5">
+                        <i class="fa-solid fa-arrow-down-short-wide text-indigo-500"></i>
+                        <span>Urutan:</span>
+                    </label>
+                    <select id="mobile-schedule-sort" onchange="window.location.href=this.value" 
+                            class="text-xs bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded-lg px-2.5 py-1.5 font-medium text-slate-700 dark:text-gray-200 focus:ring-1 focus:ring-indigo-500">
+                        <option value="{{ request()->fullUrlWithQuery(['sort' => 'date', 'direction' => 'desc', 'page' => 1]) }}" {{ (($currentSort ?? request('sort', 'date')) === 'date' && ($currentDirection ?? request('direction', 'desc')) === 'desc') ? 'selected' : '' }}>Tanggal Terbaru ↓</option>
+                        <option value="{{ request()->fullUrlWithQuery(['sort' => 'date', 'direction' => 'asc', 'page' => 1]) }}" {{ (($currentSort ?? request('sort')) === 'date' && ($currentDirection ?? request('direction')) === 'asc') ? 'selected' : '' }}>Tanggal Terlama ↑</option>
+                        <option value="{{ request()->fullUrlWithQuery(['sort' => 'campaign', 'direction' => 'asc', 'page' => 1]) }}" {{ (($currentSort ?? request('sort')) === 'campaign' && ($currentDirection ?? request('direction')) === 'asc') ? 'selected' : '' }}>Campaign A-Z</option>
+                        <option value="{{ request()->fullUrlWithQuery(['sort' => 'campaign', 'direction' => 'desc', 'page' => 1]) }}" {{ (($currentSort ?? request('sort')) === 'campaign' && ($currentDirection ?? request('direction')) === 'desc') ? 'selected' : '' }}>Campaign Z-A</option>
+                        <option value="{{ request()->fullUrlWithQuery(['sort' => 'status', 'direction' => 'asc', 'page' => 1]) }}" {{ (($currentSort ?? request('sort')) === 'status' && ($currentDirection ?? request('direction')) === 'asc') ? 'selected' : '' }}>Status A-Z</option>
+                        <option value="{{ request()->fullUrlWithQuery(['sort' => 'status', 'direction' => 'desc', 'page' => 1]) }}" {{ (($currentSort ?? request('sort')) === 'status' && ($currentDirection ?? request('direction')) === 'desc') ? 'selected' : '' }}>Status Z-A</option>
+                    </select>
+                </div>
                 <div x-show="filteredCount === 0" class="p-8 text-center text-slate-400 dark:text-gray-500" style="display: none;">
                     <i class="fa-solid fa-filter-circle-xmark text-3xl mb-2 block"></i>
                     <p class="text-sm font-medium">Tidak ada antrean yang cocok dengan filter yang dipilih.</p>

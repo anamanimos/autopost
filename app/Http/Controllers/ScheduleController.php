@@ -20,22 +20,54 @@ class ScheduleController extends Controller
         $statusFilter = $request->get('status', 'all');
         $projectFilter = $request->get('project_id');
 
+        $sort = $request->get('sort', 'date');
+        $direction = strtolower($request->get('direction', ''));
+
+        $allowedSorts = ['date', 'campaign', 'status', 'id'];
+        if (!in_array($sort, $allowedSorts)) {
+            $sort = 'date';
+        }
+
+        if (!in_array($direction, ['asc', 'desc'])) {
+            $direction = match($sort) {
+                'campaign', 'status' => 'asc',
+                default => 'desc',
+            };
+        }
+
         $query = Schedule::with([
             'projectCampaign.targets.connectedAccount',
             'mediaFile',
             'publishLogs.connectedAccount',
-        ])->latest('target_date')->latest('target_time');
+        ]);
 
         if ($statusFilter !== 'all') {
             if ($statusFilter === 'failed_all') {
-                $query->whereIn('status', ['failed', 'partially_failed']);
+                $query->whereIn('schedules.status', ['failed', 'partially_failed']);
             } else {
-                $query->where('status', $statusFilter);
+                $query->where('schedules.status', $statusFilter);
             }
         }
 
         if ($projectFilter) {
-            $query->where('project_campaign_id', $projectFilter);
+            $query->where('schedules.project_campaign_id', $projectFilter);
+        }
+
+        if ($sort === 'campaign') {
+            $query->select('schedules.*')
+                ->leftJoin('project_campaigns', 'schedules.project_campaign_id', '=', 'project_campaigns.id')
+                ->orderBy('project_campaigns.name', $direction)
+                ->orderBy('schedules.target_date', 'asc');
+        } elseif ($sort === 'status') {
+            $query->orderBy('schedules.status', $direction)
+                ->orderBy('schedules.target_date', 'desc');
+        } elseif ($sort === 'id') {
+            $query->orderBy('schedules.id', $direction);
+        } else {
+            // default 'date'
+            $query->orderBy('schedules.target_date', $direction)
+                ->orderBy('schedules.target_time', $direction)
+                ->orderBy('schedules.id', $direction);
         }
 
         $schedules = $query->paginate(30)->withQueryString();
@@ -47,7 +79,19 @@ class ScheduleController extends Controller
             'failed' => Schedule::whereIn('status', ['failed', 'partially_failed'])->count(),
         ];
 
-        return view('schedules.index', compact('schedules', 'projects', 'accounts', 'stats', 'statusFilter', 'projectFilter'));
+        $currentSort = $sort;
+        $currentDirection = $direction;
+
+        return view('schedules.index', compact(
+            'schedules',
+            'projects',
+            'accounts',
+            'stats',
+            'statusFilter',
+            'projectFilter',
+            'currentSort',
+            'currentDirection'
+        ));
     }
 
     public function showLogs($id)

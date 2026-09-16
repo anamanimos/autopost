@@ -491,6 +491,16 @@
 
                     <!-- Right: Action Buttons (Meta API Status, Theme Toggle, User Profile) -->
                     <div class="flex items-center space-x-2.5">
+                        <!-- Direct Post Shortcut Button -->
+                        <button type="button" 
+                                onclick="window.dispatchEvent(new CustomEvent('open-direct-post-modal'))" 
+                                class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs font-bold shadow-sm shadow-indigo-600/20 transition min-h-[38px] cursor-pointer"
+                                title="Post Langsung ke Meta (Instagram & Facebook)">
+                            <i class="fa-solid fa-paper-plane text-[11px]"></i>
+                            <span class="hidden sm:inline">Post Langsung</span>
+                            <span class="sm:hidden">Post</span>
+                        </button>
+
                         <!-- Meta API Connection Status Indicator -->
                         <a href="{{ route('settings.index', ['tab' => 'meta']) }}" 
                            class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg border border-slate-200/90 dark:border-gray-800 bg-white/80 dark:bg-slate-800/60 hover:border-indigo-400 dark:hover:border-indigo-500/60 transition shadow-sm group"
@@ -875,6 +885,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Direct Post Modal Component -->
+    @include('components.direct-post-modal')
 
     <!-- Global SweetAlert, Theme & Lightbox Scripts -->
     <script>

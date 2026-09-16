@@ -43,6 +43,9 @@ Route::middleware('auth')->group(function () {
 
     // Schedules & Monitoring Routes
     Route::get('schedules', [ScheduleController::class, 'index'])->name('schedules.index');
+    Route::get('schedules/calendar-events', [ScheduleController::class, 'calendarEvents'])->name('schedules.calendarEvents');
+    Route::get('schedules/recent-media', [ScheduleController::class, 'recentMedia'])->name('schedules.recentMedia');
+    Route::post('schedules/direct-post', [ScheduleController::class, 'directPost'])->name('schedules.directPost');
     Route::delete('schedules/{id}', [ScheduleController::class, 'destroy'])->name('schedules.destroy');
     Route::post('schedules/{id}/run', [ScheduleController::class, 'runSingle'])->name('schedules.runSingle');
     Route::post('schedules/{id}/status', [ScheduleController::class, 'updateStatus'])->name('schedules.updateStatus');

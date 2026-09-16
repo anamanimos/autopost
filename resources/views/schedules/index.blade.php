@@ -37,6 +37,14 @@
                 </button>
             @endif
 
+            <button type="button" 
+                    onclick="window.dispatchEvent(new CustomEvent('open-direct-post-modal'))" 
+                    class="px-3.5 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition flex items-center space-x-1.5 cursor-pointer"
+                    title="Terbitkan Konten Langsung Tanpa Penjadwalan">
+                <i class="fa-solid fa-plus text-xs"></i>
+                <span>Post Langsung</span>
+            </button>
+
             <button onclick="triggerPublishNow()" 
                     class="px-4 py-2 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition flex items-center space-x-1.5">
                 <i class="fa-solid fa-paper-plane"></i>
@@ -73,6 +81,67 @@
              :class="filters.statuses.includes('failed') || filters.statuses.includes('partially_failed') ? 'ring-2 ring-rose-500 bg-rose-50/20' : ''">
             <span class="text-[10px] font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider block">Gagal / Parsial</span>
             <span class="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1 block">{{ $stats['failed'] }}</span>
+        </div>
+    </div>
+
+    <!-- View Switcher & Calendar Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/80 dark:bg-slate-900/80 p-2.5 rounded-xl border border-slate-200/90 dark:border-gray-800 shadow-sm">
+        <!-- View Mode Tabs -->
+        <div class="flex items-center space-x-1 p-1 bg-slate-100 dark:bg-gray-800/80 rounded-lg text-xs font-semibold">
+            <button type="button" 
+                    @click="setViewMode('table')" 
+                    :class="viewMode === 'table' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-white'"
+                    class="flex-1 sm:flex-none px-3.5 py-2 rounded-md transition flex items-center justify-center space-x-1.5 min-h-[38px] cursor-pointer">
+                <i class="fa-solid fa-table-list text-xs"></i>
+                <span>Tabel</span>
+            </button>
+            <button type="button" 
+                    @click="setViewMode('month')" 
+                    :class="viewMode === 'month' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-white'"
+                    class="flex-1 sm:flex-none px-3.5 py-2 rounded-md transition flex items-center justify-center space-x-1.5 min-h-[38px] cursor-pointer">
+                <i class="fa-solid fa-calendar-days text-xs"></i>
+                <span>Kalender Bulan</span>
+            </button>
+            <button type="button" 
+                    @click="setViewMode('week')" 
+                    :class="viewMode === 'week' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-white'"
+                    class="flex-1 sm:flex-none px-3.5 py-2 rounded-md transition flex items-center justify-center space-x-1.5 min-h-[38px] cursor-pointer">
+                <i class="fa-solid fa-calendar-week text-xs"></i>
+                <span>Kalender Minggu</span>
+            </button>
+        </div>
+
+        <!-- Calendar Navigation (Visible in month & week views) -->
+        <div x-show="viewMode !== 'table'" x-transition class="flex items-center justify-between sm:justify-end space-x-2">
+            <div class="flex items-center space-x-1">
+                <button type="button" 
+                        @click="prevCalendarPeriod()" 
+                        class="p-2 rounded-lg border border-slate-300/80 dark:border-gray-700 text-slate-700 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-800 transition min-h-[44px] min-w-[44px] flex items-center justify-center"
+                        :title="viewMode === 'month' ? 'Bulan Sebelumnya' : 'Minggu Sebelumnya'">
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+                
+                <button type="button" 
+                        @click="goCalendarToday()" 
+                        class="px-3 py-2 rounded-lg border border-slate-300/80 dark:border-gray-700 text-slate-700 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-800 font-semibold text-xs transition min-h-[44px]">
+                    Hari Ini
+                </button>
+
+                <button type="button" 
+                        @click="nextCalendarPeriod()" 
+                        class="p-2 rounded-lg border border-slate-300/80 dark:border-gray-700 text-slate-700 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-800 transition min-h-[44px] min-w-[44px] flex items-center justify-center"
+                        :title="viewMode === 'month' ? 'Bulan Selanjutnya' : 'Minggu Selanjutnya'">
+                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                </button>
+            </div>
+
+            <div class="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 font-bold text-xs text-indigo-700 dark:text-indigo-300 min-h-[44px] flex items-center">
+                <i class="fa-regular fa-calendar text-indigo-500 mr-2"></i>
+                <span x-text="calendarHeaderTitle"></span>
+                <span x-show="isLoadingCalendar" class="ml-2 text-indigo-500">
+                    <i class="fa-solid fa-circle-notch fa-spin text-xs"></i>
+                </span>
+            </div>
         </div>
     </div>
 
@@ -207,14 +276,16 @@
         </button>
     </div>
 
-    <!-- Results Count -->
-    <div x-show="hasActiveFilters || searchQuery" class="text-[11px] text-slate-500 dark:text-gray-400 flex items-center justify-between">
-        <span>Menampilkan <strong class="text-slate-800 dark:text-gray-200" x-text="filteredCount"></strong> dari <strong>{{ $schedules->count() }}</strong> antrean pada halaman ini</span>
-        <span x-show="searchQuery" class="italic text-slate-400">Pencarian: "<span x-text="searchQuery"></span>"</span>
-    </div>
+    <!-- ========== TABEL / LIST VIEW ========== -->
+    <div x-show="viewMode === 'table'" class="space-y-4">
+        <!-- Results Count -->
+        <div x-show="hasActiveFilters || searchQuery" class="text-[11px] text-slate-500 dark:text-gray-400 flex items-center justify-between">
+            <span>Menampilkan <strong class="text-slate-800 dark:text-gray-200" x-text="filteredCount"></strong> dari <strong>{{ $schedules->count() }}</strong> antrean pada halaman ini</span>
+            <span x-show="searchQuery" class="italic text-slate-400">Pencarian: "<span x-text="searchQuery"></span>"</span>
+        </div>
 
-    <!-- Schedules Table (Desktop) & Cards (Mobile) -->
-    <div class="card-dark rounded-xl border border-slate-200/90 dark:border-gray-800 overflow-hidden shadow-sm">
+        <!-- Schedules Table (Desktop) & Cards (Mobile) -->
+        <div class="card-dark rounded-xl border border-slate-200/90 dark:border-gray-800 overflow-hidden shadow-sm">
         @if($schedules->isEmpty())
             <div class="text-center py-12 space-y-2">
                 <i class="fa-regular fa-calendar-xmark text-3xl text-slate-400 dark:text-gray-500"></i>
@@ -586,6 +657,247 @@
             </div>
         @endif
     </div>
+    </div>
+    <!-- ========== AKHIR TABEL / LIST VIEW ========== -->
+
+    <!-- ========== KALENDER BULAN VIEW ========== -->
+    <div x-show="viewMode === 'month'" x-cloak class="space-y-4">
+        <!-- Desktop & Tablet Month Grid -->
+        <div class="card-dark rounded-xl border border-slate-200/90 dark:border-gray-800 overflow-hidden shadow-sm">
+            <!-- Weekday Headers (Senin s.d. Minggu) -->
+            <div class="grid grid-cols-7 border-b border-slate-200 dark:border-gray-800 bg-slate-100/90 dark:bg-gray-900/80 text-center text-[11px] font-bold uppercase tracking-wider py-2.5 text-slate-600 dark:text-gray-400">
+                <div>Sen</div>
+                <div>Sel</div>
+                <div>Rab</div>
+                <div>Kam</div>
+                <div>Jum</div>
+                <div class="text-indigo-600 dark:text-indigo-400">Sab</div>
+                <div class="text-rose-600 dark:text-rose-400">Min</div>
+            </div>
+
+            <!-- Days Grid (42 cells: 6 rows x 7 cols) -->
+            <div class="grid grid-cols-7 divide-x divide-y divide-slate-200/80 dark:divide-gray-800/60 bg-slate-50/30 dark:bg-gray-950/20">
+                <template x-for="day in monthGridDays" :key="day.dateStr">
+                    <div @click="selectDay(day.dateStr)" 
+                         :class="[
+                             day.isCurrentMonth ? 'bg-white dark:bg-slate-900/60' : 'bg-slate-100/50 dark:bg-gray-900/30 opacity-60',
+                             selectedDayDate === day.dateStr ? 'ring-2 ring-indigo-500 z-10' : ''
+                         ]"
+                         class="min-h-[85px] sm:min-h-[110px] p-1.5 sm:p-2 transition flex flex-col justify-between hover:bg-indigo-50/20 dark:hover:bg-slate-800/40 cursor-pointer">
+                        
+                        <!-- Date Header in Cell -->
+                        <div class="flex items-center justify-between">
+                            <span :class="[
+                                      day.isToday ? 'bg-indigo-600 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shadow-sm' : 'text-xs font-semibold text-slate-700 dark:text-gray-300'
+                                  ]"
+                                  x-text="day.dayNumber"></span>
+
+                            <template x-if="day.events.length > 0">
+                                <span class="px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-gray-800 text-[10px] font-bold text-slate-600 dark:text-gray-400 leading-none"
+                                      x-text="day.events.length"></span>
+                            </template>
+                        </div>
+
+                        <!-- Events list (Desktop & Tablet) -->
+                        <div class="hidden sm:block space-y-1 my-1 flex-1 overflow-y-auto max-h-20">
+                            <template x-for="(evt, idx) in day.events.slice(0, 3)" :key="evt.id">
+                                <div @click.stop="openEventModal(evt)"
+                                     :class="[
+                                         evt.status === 'completed' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20' : 
+                                         (evt.status === 'failed' || evt.status === 'partially_failed' ? 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30 hover:bg-rose-500/20' : 
+                                         'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/20')
+                                     ]"
+                                     class="px-1.5 py-1 rounded text-[10px] border font-medium truncate flex items-center space-x-1 cursor-pointer transition">
+                                    <i :class="evt.content_type === 'story' ? 'fa-solid fa-circle-notch text-[8px] text-pink-500' : 'fa-solid fa-square-rss text-[8px] text-indigo-500'"></i>
+                                    <span class="font-mono text-[9px]" x-text="evt.target_time"></span>
+                                    <span class="truncate font-semibold" x-text="evt.campaign_name"></span>
+                                </div>
+                            </template>
+
+                            <template x-if="day.events.length > 3">
+                                <div class="text-[9px] text-indigo-600 dark:text-indigo-400 font-bold px-1 hover:underline">
+                                    +<span x-text="day.events.length - 3"></span> lainnya
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Mobile Dots Indicator -->
+                        <div class="sm:hidden flex items-center justify-center gap-1 mt-1">
+                            <template x-if="day.hasPending">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                            </template>
+                            <template x-if="day.hasCompleted">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            </template>
+                            <template x-if="day.hasFailed">
+                                <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Selected Day Schedule Cards Drawer (Mobile Friendly & Tap to Expand) -->
+        <div x-show="selectedDayDate" class="card-dark rounded-xl p-4 border border-slate-200/90 dark:border-gray-800 space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-gray-800 pb-2.5">
+                <h3 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+                    <i class="fa-regular fa-calendar-check text-indigo-500"></i>
+                    <span>Jadwal Tanggal: <strong class="text-indigo-600 dark:text-indigo-400" x-text="selectedDayDate"></strong></span>
+                    <span class="text-slate-400 font-normal text-xs" x-text="'(' + selectedDayEvents.length + ' antrean)'"></span>
+                </h3>
+                <button type="button" @click="selectedDayDate = null" class="text-slate-400 hover:text-slate-600 text-xs">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <template x-if="selectedDayEvents.length === 0">
+                <div class="text-center py-6 text-xs text-slate-400">
+                    <i class="fa-regular fa-calendar-xmark text-2xl mb-1.5 block"></i>
+                    <span>Tidak ada jadwal antrean untuk tanggal ini.</span>
+                </div>
+            </template>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <template x-for="evt in selectedDayEvents" :key="evt.id">
+                    <div @click="openEventModal(evt)" class="p-3 rounded-lg border border-slate-200 dark:border-gray-700/80 bg-white dark:bg-gray-850 hover:border-indigo-400 dark:hover:border-indigo-500 transition cursor-pointer shadow-sm flex items-start space-x-3">
+                        <!-- Thumbnail -->
+                        <div class="w-14 h-14 rounded-lg bg-slate-900 flex-shrink-0 overflow-hidden relative flex items-center justify-center">
+                            <template x-if="evt.media_url && !evt.is_video">
+                                <img :src="evt.media_url" class="w-full h-full object-cover">
+                            </template>
+                            <template x-if="evt.media_url && evt.is_video">
+                                <div class="w-full h-full flex flex-col items-center justify-center text-slate-300">
+                                    <i class="fa-solid fa-circle-play text-lg text-indigo-400"></i>
+                                </div>
+                            </template>
+                            <template x-if="!evt.media_url">
+                                <i class="fa-regular fa-image text-slate-500 text-lg"></i>
+                            </template>
+                        </div>
+
+                        <!-- Details -->
+                        <div class="min-w-0 flex-1 space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-xs text-slate-900 dark:text-white truncate" x-text="evt.campaign_name"></span>
+                                <span :class="[
+                                          evt.status === 'completed' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' :
+                                          (evt.status === 'failed' || evt.status === 'partially_failed' ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' :
+                                          'bg-amber-500/20 text-amber-600 dark:text-amber-400')
+                                      ]"
+                                      class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase"
+                                      x-text="evt.status"></span>
+                            </div>
+                            <div class="text-[11px] text-slate-500 dark:text-gray-400 flex items-center gap-1.5">
+                                <i class="fa-regular fa-clock text-[10px]"></i>
+                                <span x-text="evt.target_time + ' WIB'"></span>
+                                <span>•</span>
+                                <span x-text="evt.content_type === 'story' ? 'Story' : 'Feed Post'"></span>
+                            </div>
+                            <p x-show="evt.caption" class="text-[10px] text-slate-400 truncate italic" x-text="evt.caption"></p>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== KALENDER MINGGU VIEW ========== -->
+    <div x-show="viewMode === 'week'" x-cloak class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
+            <template x-for="day in weekDays" :key="day.dateStr">
+                <div :class="day.isToday ? 'ring-2 ring-indigo-500 bg-indigo-50/10 dark:bg-indigo-950/20' : 'bg-white dark:bg-slate-900/60'"
+                     class="card-dark rounded-xl border border-slate-200/90 dark:border-gray-800 overflow-hidden shadow-sm flex flex-col min-h-[300px]">
+                    
+                    <!-- Column Day Header -->
+                    <div :class="day.isToday ? 'bg-indigo-600 text-white' : 'bg-slate-100/90 dark:bg-gray-800/80 text-slate-800 dark:text-gray-200'"
+                         class="p-2.5 text-center border-b border-slate-200 dark:border-gray-800 flex items-center justify-between">
+                        <div>
+                            <span class="block text-xs font-bold uppercase tracking-wider" x-text="day.dayName"></span>
+                            <span class="block text-[11px] opacity-80" x-text="day.dayNumber + ' ' + calendarHeaderTitle.split(' ')[0]"></span>
+                        </div>
+                        <span :class="day.isToday ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-gray-700 text-slate-700 dark:text-gray-300'"
+                              class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                              x-text="day.events.length"></span>
+                    </div>
+
+                    <!-- Column Events Cards Container -->
+                    <div class="p-2 space-y-2 flex-1 overflow-y-auto max-h-[500px]">
+                        <template x-if="day.events.length === 0">
+                            <div class="text-center py-10 text-slate-400 text-xs">
+                                <i class="fa-regular fa-calendar-minus text-xl mb-1 block opacity-60"></i>
+                                <span class="text-[11px]">Tidak ada jadwal</span>
+                            </div>
+                        </template>
+
+                        <template x-for="evt in day.events" :key="evt.id">
+                            <div @click="openEventModal(evt)"
+                                 class="p-2.5 rounded-lg border border-slate-200 dark:border-gray-700/80 bg-slate-50/50 dark:bg-gray-800/40 hover:border-indigo-400 dark:hover:border-indigo-500 transition cursor-pointer shadow-sm space-y-2">
+                                
+                                <!-- Header: Time & Status -->
+                                <div class="flex items-center justify-between">
+                                    <span class="font-mono text-[10px] font-bold text-slate-800 dark:text-gray-200 flex items-center gap-1">
+                                        <i class="fa-regular fa-clock text-[9px] text-indigo-500"></i>
+                                        <span x-text="evt.target_time"></span>
+                                    </span>
+                                    <span :class="[
+                                              evt.status === 'completed' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' :
+                                              (evt.status === 'failed' || evt.status === 'partially_failed' ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' :
+                                              'bg-amber-500/20 text-amber-600 dark:text-amber-400')
+                                          ]"
+                                          class="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase"
+                                          x-text="evt.status"></span>
+                                </div>
+
+                                <!-- Media Thumbnail (if exists) -->
+                                <template x-if="evt.media_url">
+                                    <div class="w-full h-24 rounded-md overflow-hidden bg-slate-900 relative flex items-center justify-center">
+                                        <template x-if="!evt.is_video">
+                                            <img :src="evt.media_url" class="w-full h-full object-cover">
+                                        </template>
+                                        <template x-if="evt.is_video">
+                                            <i class="fa-solid fa-circle-play text-2xl text-white/80"></i>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                <!-- Title & Content Type -->
+                                <div>
+                                    <div class="font-bold text-xs text-slate-900 dark:text-white truncate" x-text="evt.campaign_name"></div>
+                                    <div class="flex items-center gap-1 text-[10px] text-slate-500 dark:text-gray-400 mt-0.5">
+                                        <i :class="evt.content_type === 'story' ? 'fa-solid fa-circle-notch text-pink-500' : 'fa-solid fa-square-rss text-indigo-500'"></i>
+                                        <span x-text="evt.content_type === 'story' ? 'Story' : 'Feed Post'"></span>
+                                    </div>
+                                </div>
+
+                                <!-- Quick Action Buttons -->
+                                <div class="pt-1.5 border-t border-slate-200 dark:border-gray-700/60 flex items-center justify-end space-x-1" @click.stop>
+                                    <button type="button" 
+                                            @click="if (evt.status === 'completed') { promptRepublishOption(evt.id, evt.target_date_formatted + ' ' + evt.target_time + ' WIB', evt.campaign_name); } else { publishScheduledWithProgress(evt.id, evt.target_date_formatted + ' ' + evt.target_time + ' WIB', evt.campaign_name); }"
+                                            class="p-1.5 rounded hover:bg-indigo-50 text-indigo-600 dark:hover:bg-indigo-950/60 dark:text-indigo-400 text-xs transition"
+                                            title="Jalankan Sekarang">
+                                        <i class="fa-solid fa-paper-plane text-[10px]"></i>
+                                    </button>
+                                    <button type="button" 
+                                            @click="showScheduleLogModal(evt.id)"
+                                            class="p-1.5 rounded hover:bg-slate-200 text-slate-600 dark:hover:bg-gray-700 dark:text-gray-300 text-xs transition"
+                                            title="Log Eksekusi">
+                                        <i class="fa-solid fa-list-check text-[10px]"></i>
+                                    </button>
+                                    <button type="button" 
+                                            @click="openChangeStatusModal(evt.id, evt.status, evt.target_date_formatted + ' ' + evt.target_time + ' WIB')"
+                                            class="p-1.5 rounded hover:bg-slate-200 text-slate-600 dark:hover:bg-gray-700 dark:text-gray-300 text-xs transition"
+                                            title="Ubah Status">
+                                        <i class="fa-solid fa-pen-to-square text-[10px]"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
 
     <!-- ================================================================= -->
     <!-- MOBILE FLOATING ACTION BUTTONS (SEARCH & FILTER)                   -->
@@ -789,6 +1101,11 @@
 <script>
     function schedulePage() {
         return {
+            viewMode: localStorage.getItem('schedule_view_mode') || 'table',
+            currentDate: new Date(),
+            selectedDayDate: null,
+            calendarEvents: [],
+            isLoadingCalendar: false,
             showFilterPanel: false,
             mobileFilterOpen: false,
             searchOpen: false,
@@ -853,6 +1170,9 @@
                 }
                 this.filterVersion++;
                 this.updateFilteredCount();
+                if (this.viewMode !== 'table') {
+                    this.fetchCalendarEvents();
+                }
             },
 
             setSingleFilter(group, value) {
@@ -871,6 +1191,9 @@
                 }
                 this.filterVersion++;
                 this.updateFilteredCount();
+                if (this.viewMode !== 'table') {
+                    this.fetchCalendarEvents();
+                }
             },
 
             removeFilter(group, value) {
@@ -880,6 +1203,9 @@
                 }
                 this.filterVersion++;
                 this.updateFilteredCount();
+                if (this.viewMode !== 'table') {
+                    this.fetchCalendarEvents();
+                }
             },
 
             clearAllFilters() {
@@ -891,6 +1217,9 @@
                 this.searchQuery = '';
                 this.filterVersion++;
                 this.updateFilteredCount();
+                if (this.viewMode !== 'table') {
+                    this.fetchCalendarEvents();
+                }
             },
 
             get hasActiveFilters() {
@@ -1034,8 +1363,327 @@
                 return text.toLowerCase().includes(this.searchQuery.trim().toLowerCase());
             },
 
+            setViewMode(mode) {
+                this.viewMode = mode;
+                localStorage.setItem('schedule_view_mode', mode);
+                if (mode === 'month' || mode === 'week') {
+                    this.fetchCalendarEvents();
+                }
+            },
+
+            prevCalendarPeriod() {
+                if (this.viewMode === 'month') {
+                    this.currentDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() - 1, 1);
+                } else {
+                    const d = new Date(this.currentDate);
+                    d.setDate(d.getDate() - 7);
+                    this.currentDate = d;
+                }
+                this.fetchCalendarEvents();
+            },
+
+            nextCalendarPeriod() {
+                if (this.viewMode === 'month') {
+                    this.currentDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() + 1, 1);
+                } else {
+                    const d = new Date(this.currentDate);
+                    d.setDate(d.getDate() + 7);
+                    this.currentDate = d;
+                }
+                this.fetchCalendarEvents();
+            },
+
+            goCalendarToday() {
+                this.currentDate = new Date();
+                this.selectedDayDate = this.formatDateISO(new Date());
+                this.fetchCalendarEvents();
+            },
+
+            formatDateISO(d) {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            },
+
+            get calendarHeaderTitle() {
+                const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                if (this.viewMode === 'month') {
+                    return `${months[this.currentDate.getMonth()]} ${this.currentDate.getFullYear()}`;
+                } else {
+                    const week = this.weekDays;
+                    if (!week || week.length === 0) return '';
+                    const start = week[0];
+                    const end = week[6];
+                    return `${start.dayNumber} ${months[start.month].slice(0, 3)} - ${end.dayNumber} ${months[end.month].slice(0, 3)} ${end.year}`;
+                }
+            },
+
+            get calendarDateRange() {
+                if (this.viewMode === 'month') {
+                    const y = this.currentDate.getFullYear();
+                    const m = this.currentDate.getMonth();
+                    const firstDay = new Date(y, m, 1);
+                    let dayOfWeek = firstDay.getDay();
+                    let diff = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek;
+                    const start = new Date(y, m, 1 + diff);
+
+                    const end = new Date(start);
+                    end.setDate(start.getDate() + 41);
+
+                    return {
+                        start: this.formatDateISO(start),
+                        end: this.formatDateISO(end)
+                    };
+                } else {
+                    const d = new Date(this.currentDate);
+                    const day = d.getDay();
+                    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+                    const monday = new Date(d.setDate(diff));
+                    const sunday = new Date(monday);
+                    sunday.setDate(monday.getDate() + 6);
+
+                    return {
+                        start: this.formatDateISO(monday),
+                        end: this.formatDateISO(sunday)
+                    };
+                }
+            },
+
+            fetchCalendarEvents() {
+                this.isLoadingCalendar = true;
+                const range = this.calendarDateRange;
+                const params = new URLSearchParams();
+                params.append('start', range.start);
+                params.append('end', range.end);
+
+                if (this.filters.projects.length > 0) {
+                    params.append('project_id', this.filters.projects.join(','));
+                }
+                if (this.filters.statuses.length > 0) {
+                    params.append('status', this.filters.statuses.join(','));
+                }
+                if (this.filters.contentTypes.length > 0) {
+                    params.append('content_type', this.filters.contentTypes.join(','));
+                }
+                if (this.filters.accounts.length > 0) {
+                    params.append('account_id', this.filters.accounts.join(','));
+                }
+                if (this.filters.platforms.length > 0) {
+                    params.append('platform', this.filters.platforms.join(','));
+                }
+                if (this.searchQuery && this.searchQuery.trim() !== '') {
+                    params.append('search', this.searchQuery.trim());
+                }
+
+                fetch(`/schedules/calendar-events?${params.toString()}`, {
+                    headers: { 'Accept': 'application/json' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    this.isLoadingCalendar = false;
+                    if (data.success && data.events) {
+                        this.calendarEvents = data.events;
+                    }
+                })
+                .catch(err => {
+                    this.isLoadingCalendar = false;
+                    console.error('Gagal mengambil data kalender:', err);
+                });
+            },
+
+            get monthGridDays() {
+                const y = this.currentDate.getFullYear();
+                const m = this.currentDate.getMonth();
+                const firstDay = new Date(y, m, 1);
+                let dayOfWeek = firstDay.getDay();
+                let diff = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek;
+                const start = new Date(y, m, 1 + diff);
+
+                const days = [];
+                const todayStr = this.formatDateISO(new Date());
+
+                for (let i = 0; i < 42; i++) {
+                    const curr = new Date(start);
+                    curr.setDate(start.getDate() + i);
+                    const dateStr = this.formatDateISO(curr);
+                    const isCurrentMonth = curr.getMonth() === m;
+                    const isToday = dateStr === todayStr;
+
+                    const dayEvents = this.calendarEvents.filter(e => e.target_date === dateStr);
+
+                    days.push({
+                        dateStr: dateStr,
+                        dayNumber: curr.getDate(),
+                        isCurrentMonth: isCurrentMonth,
+                        isToday: isToday,
+                        events: dayEvents,
+                        hasCompleted: dayEvents.some(e => e.status === 'completed'),
+                        hasPending: dayEvents.some(e => e.status === 'pending'),
+                        hasFailed: dayEvents.some(e => e.status === 'failed' || e.status === 'partially_failed'),
+                    });
+                }
+                return days;
+            },
+
+            get weekDays() {
+                const d = new Date(this.currentDate);
+                const day = d.getDay();
+                const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+                const monday = new Date(d.setDate(diff));
+
+                const dayNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+                const days = [];
+                const todayStr = this.formatDateISO(new Date());
+
+                for (let i = 0; i < 7; i++) {
+                    const curr = new Date(monday);
+                    curr.setDate(monday.getDate() + i);
+                    const dateStr = this.formatDateISO(curr);
+
+                    const dayEvents = this.calendarEvents.filter(e => e.target_date === dateStr);
+
+                    days.push({
+                        dayName: dayNames[i],
+                        dateStr: dateStr,
+                        dayNumber: curr.getDate(),
+                        month: curr.getMonth(),
+                        year: curr.getFullYear(),
+                        isToday: dateStr === todayStr,
+                        events: dayEvents
+                    });
+                }
+                return days;
+            },
+
+            get selectedDayEvents() {
+                if (!this.selectedDayDate) {
+                    const todayStr = this.formatDateISO(new Date());
+                    return this.calendarEvents.filter(e => e.target_date === todayStr);
+                }
+                return this.calendarEvents.filter(e => e.target_date === this.selectedDayDate);
+            },
+
+            selectDay(dateStr) {
+                this.selectedDayDate = dateStr;
+            },
+
+            openEventModal(event) {
+                const statusBadges = {
+                    completed: '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 uppercase">SELESAI</span>',
+                    pending: '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400 uppercase">PENDING</span>',
+                    failed: '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-600 dark:text-rose-400 uppercase">GAGAL</span>',
+                    partially_failed: '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-500/20 text-orange-600 dark:text-orange-400 uppercase">PARSIAL</span>',
+                    skipped: '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-500/20 text-slate-500 uppercase">DILEWATI</span>',
+                };
+
+                let targetBadges = '';
+                if (event.targets && event.targets.length > 0) {
+                    event.targets.forEach(t => {
+                        targetBadges += `<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 text-[11px]">
+                            <i class="${t.platform_target === 'instagram_only' ? 'fa-brands fa-instagram text-pink-500' : (t.platform_target === 'facebook_only' ? 'fa-brands fa-facebook text-blue-500' : 'fa-solid fa-globe text-indigo-500')}"></i>
+                            <span>${t.page_name}</span>
+                        </span>`;
+                    });
+                }
+
+                Swal.fire({
+                    title: `${event.campaign_name}`,
+                    html: `
+                        <div class="text-left space-y-3 text-xs text-slate-600 dark:text-gray-300">
+                            <div class="flex items-center justify-between border-b border-slate-200 dark:border-gray-800 pb-2">
+                                <span class="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                    <i class="fa-regular fa-clock text-indigo-500"></i>
+                                    <span>${event.target_date_formatted} jam ${event.target_time} WIB</span>
+                                </span>
+                                ${statusBadges[event.status] || event.status}
+                            </div>
+
+                            ${event.media_url ? `
+                                <div class="w-full h-36 rounded-lg overflow-hidden bg-slate-950 flex items-center justify-center cursor-pointer relative" onclick="openLightboxDirect('${event.media_url}', ${event.is_video})">
+                                    ${event.is_video ? `
+                                        <div class="flex flex-col items-center text-slate-300">
+                                            <i class="fa-solid fa-circle-play text-3xl text-indigo-400"></i>
+                                            <span class="text-[10px] mt-1 font-mono">Klik untuk putar video</span>
+                                        </div>
+                                    ` : `
+                                        <img src="${event.media_url}" class="w-full h-full object-cover">
+                                    `}
+                                </div>
+                            ` : ''}
+
+                            ${event.caption ? `
+                                <div class="p-2.5 rounded-lg bg-slate-50 dark:bg-gray-900/60 border border-slate-200 dark:border-gray-800 text-slate-700 dark:text-gray-300 text-[11px] leading-relaxed max-h-24 overflow-y-auto italic">
+                                    "${event.caption}"
+                                </div>
+                            ` : ''}
+
+                            <div class="space-y-1">
+                                <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Target Akun:</span>
+                                <div class="flex flex-wrap gap-1.5">${targetBadges || '-'}</div>
+                            </div>
+
+                            <div class="pt-3 border-t border-slate-200 dark:border-gray-800 flex flex-wrap gap-2">
+                                <button type="button" id="btnRunEvent" class="flex-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg text-xs transition flex items-center justify-center gap-1.5 min-h-[44px] cursor-pointer">
+                                    <i class="fa-solid fa-paper-plane text-[11px]"></i>
+                                    <span>Jalankan Sekarang</span>
+                                </button>
+                                <button type="button" id="btnLogEvent" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-300 font-semibold rounded-lg text-xs transition flex items-center justify-center gap-1.5 min-h-[44px] cursor-pointer">
+                                    <i class="fa-solid fa-list-check text-[11px]"></i>
+                                    <span>Log</span>
+                                </button>
+                                <button type="button" id="btnStatusEvent" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-300 font-semibold rounded-lg text-xs transition flex items-center justify-center gap-1.5 min-h-[44px] cursor-pointer">
+                                    <i class="fa-solid fa-pen-to-square text-[11px]"></i>
+                                    <span>Status</span>
+                                </button>
+                            </div>
+                        </div>
+                    `,
+                    showConfirmButton: false,
+                    showCancelButton: true,
+                    cancelButtonText: 'Tutup',
+                    cancelButtonColor: '#64748b',
+                    didOpen: () => {
+                        const btnRun = document.getElementById('btnRunEvent');
+                        const btnLog = document.getElementById('btnLogEvent');
+                        const btnStatus = document.getElementById('btnStatusEvent');
+
+                        if (btnRun) {
+                            btnRun.onclick = () => {
+                                Swal.close();
+                                if (event.status === 'completed') {
+                                    promptRepublishOption(event.id, `${event.target_date_formatted} ${event.target_time} WIB`, event.campaign_name);
+                                } else {
+                                    publishScheduledWithProgress(event.id, `${event.target_date_formatted} ${event.target_time} WIB`, event.campaign_name);
+                                }
+                            };
+                        }
+                        if (btnLog) {
+                            btnLog.onclick = () => {
+                                Swal.close();
+                                showScheduleLogModal(event.id);
+                            };
+                        }
+                        if (btnStatus) {
+                            btnStatus.onclick = () => {
+                                Swal.close();
+                                openChangeStatusModal(event.id, event.status, `${event.target_date_formatted} ${event.target_time} WIB`);
+                            };
+                        }
+                    },
+                    customClass: {
+                        popup: 'swal2-popup-dark',
+                        title: 'swal2-title-dark',
+                        htmlContainer: 'swal2-html-dark'
+                    }
+                });
+            },
+
             init() {
                 this.updateFilteredCount();
+                if (this.viewMode === 'month' || this.viewMode === 'week') {
+                    this.fetchCalendarEvents();
+                }
             }
         };
     }

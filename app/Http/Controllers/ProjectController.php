@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Console\Commands\MaintainScheduleBufferCommand;
+use App\Jobs\PublishScheduleJob;
 use App\Models\CampaignTarget;
 use App\Models\ConnectedAccount;
 use App\Models\MediaFile;
 use App\Models\ProjectCampaign;
 use App\Models\Schedule;
+use App\Services\MetaGraphService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -127,16 +129,18 @@ class ProjectController extends Controller
         return view('projects.edit', compact('project', 'accounts'));
     }
 
-    public function store(Request $request)
+    public function store(Request $request, MetaGraphService $metaService)
     {
         try {
+            $isDirectPublish = $request->boolean('direct_publish') || $request->input('repeat_type') === 'instant';
+
             $request->validate([
                 'name' => 'required|string|max:255',
                 'content_type' => 'required|in:story,post',
                 'caption' => 'nullable|string',
-                'target_time' => 'required|string',
+                'target_time' => ($isDirectPublish && $request->input('repeat_type') === 'instant') ? 'nullable|string' : 'required|string',
                 'images_per_post' => 'nullable|integer|min:1|max:10',
-                'repeat_type' => 'required|in:continuous,once,until_date',
+                'repeat_type' => 'required|in:continuous,once,until_date,instant',
                 'start_date' => 'nullable|date',
                 'end_date' => 'nullable|date|after_or_equal:start_date',
                 'exclude_days' => 'nullable|array',
@@ -160,8 +164,8 @@ class ProjectController extends Controller
                 return redirect()->back()->with('error', $msg);
             }
 
-            // Validasi Aturan 1x Post: Minimal 30 menit dari jam sekarang
-            if ($request->repeat_type === 'once') {
+            // Validasi Aturan 1x Post: Minimal 30 menit dari jam sekarang (hanya berlaku jika bukan direct publish)
+            if ($request->repeat_type === 'once' && !$isDirectPublish) {
                 $targetDateStr = $request->start_date ? Carbon::parse($request->start_date)->format('Y-m-d') : Carbon::today()->format('Y-m-d');
                 $targetDateTimeStr = $targetDateStr . ' ' . trim($request->target_time);
                 $scheduledAt = Carbon::parse($targetDateTimeStr);
@@ -177,18 +181,23 @@ class ProjectController extends Controller
                 }
             }
 
+            $now = Carbon::now();
+            $targetTime = $request->target_time ? trim($request->target_time) : $now->format('H:i');
+            $repeatType = $request->repeat_type;
+            $isInstant = ($repeatType === 'instant');
+
             $project = ProjectCampaign::create([
                 'name' => trim($request->name),
                 'content_type' => $request->content_type,
                 'caption' => $request->caption ? trim($request->caption) : null,
-                'target_time' => trim($request->target_time),
+                'target_time' => $targetTime,
                 'images_per_post' => (int) ($request->images_per_post ?? 1),
-                'repeat_type' => $request->repeat_type,
+                'repeat_type' => $isInstant ? 'once' : $repeatType,
                 'start_date' => $request->start_date ? Carbon::parse($request->start_date) : Carbon::today(),
                 'end_date' => $request->end_date ? Carbon::parse($request->end_date) : null,
                 'exclude_days' => array_map('intval', $request->input('exclude_days', [])),
-                'is_continuous' => ($request->repeat_type === 'continuous'),
-                'status' => 'active',
+                'is_continuous' => ($repeatType === 'continuous'),
+                'status' => $isInstant ? 'completed' : 'active',
             ]);
 
             // Simpan Target Akun & Platform Target Per Akun (Bagian 2.1)
@@ -208,7 +217,68 @@ class ProjectController extends Controller
             }
             $project->mediaFiles()->sync(array_unique($allMediaIds));
 
-            // Inisialisasi Buffer Penjadwalan
+            // Jika Direct Publish: Buat Schedule langsung saat ini dan publish ke Meta
+            if ($isDirectPublish) {
+                $mediaFiles = $project->mediaFiles;
+                $primaryMedia = $mediaFiles->first();
+                $mediaPaths = $mediaFiles->pluck('file_path')->all();
+                if (empty($mediaPaths) && $primaryMedia) {
+                    $mediaPaths = [$primaryMedia->file_path];
+                }
+
+                $itemCode = 'direct_proj_' . $project->id . '_' . $now->format('Ymd_His') . '_' . rand(10, 99);
+                $schedule = Schedule::create([
+                    'project_campaign_id' => $project->id,
+                    'item_code' => $itemCode,
+                    'media_file_id' => $primaryMedia?->id,
+                    'media_path' => $primaryMedia?->file_path ?? '',
+                    'media_paths' => $mediaPaths,
+                    'target_date' => $now->toDateString(),
+                    'target_time' => $now->format('H:i'),
+                    'status' => 'pending',
+                    'notes' => "Post Langsung dari Campaign '{$project->name}' (" . $now->format('d/m/Y H:i') . " WIB)",
+                ]);
+
+                try {
+                    (new PublishScheduleJob($schedule))->handle($metaService);
+                } catch (\Throwable $e) {
+                    $schedule->update([
+                        'status' => 'failed',
+                        'notes' => 'Gagal terbit langsung: ' . $e->getMessage(),
+                        'executed_at' => Carbon::now(),
+                    ]);
+                }
+
+                // Jika repeat_type adalah continuous atau until_date, siapkan juga buffer jadwal hari berikutnya
+                if ($repeatType === 'continuous' || $repeatType === 'until_date') {
+                    $this->seedInitialBuffer($project);
+                }
+
+                $schedule->refresh();
+                $schedule->load(['publishLogs.connectedAccount']);
+
+                $isSuccess = in_array($schedule->status, ['completed', 'partially_failed']);
+                $msg = match($schedule->status) {
+                    'completed' => "Project '{$project->name}' berhasil dibuat dan langsung diterbitkan ke Meta!",
+                    'partially_failed' => "Project '{$project->name}' berhasil dibuat dan diterbitkan sebagian. Periksa catatan log.",
+                    default => "Project '{$project->name}' dibuat, namun penerbitan langsung gagal: " . ($schedule->notes ?? ''),
+                };
+
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'success' => $isSuccess,
+                        'direct_published' => true,
+                        'schedule_status' => $schedule->status,
+                        'message' => $msg,
+                        'redirect' => route('projects.show', $project->id),
+                        'logs' => $schedule->publishLogs,
+                    ]);
+                }
+
+                return redirect()->route('projects.show', $project->id)->with($isSuccess ? 'success' : 'error', $msg);
+            }
+
+            // Inisialisasi Buffer Penjadwalan Biasa (tanpa direct publish)
             $this->seedInitialBuffer($project);
 
             $msg = "Project '{$project->name}' berhasil dibuat dan antrean jadwal telah diinisialisasi!";
@@ -216,6 +286,7 @@ class ProjectController extends Controller
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => true,
+                    'direct_published' => false,
                     'message' => $msg,
                     'redirect' => route('projects.show', $project->id),
                 ]);

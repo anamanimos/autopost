@@ -171,10 +171,19 @@
                     <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
                         Moda Pengulangan <span class="text-rose-500">*</span>
                     </label>
-                    <div class="grid grid-cols-3 gap-2 sm:gap-3">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="repeat_type" value="instant" {{ $selectedRepeatType === 'instant' ? 'checked' : '' }} class="peer hidden" onchange="toggleRepeatFields()">
+                            <div class="p-2 sm:p-2.5 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-emerald-600 peer-checked:ring-2 peer-checked:ring-emerald-500/20 peer-checked:bg-emerald-50/40 dark:peer-checked:bg-emerald-950/20 transition text-center min-h-[44px]">
+                                <div class="text-emerald-500 text-sm mb-0.5"><i class="fa-solid fa-paper-plane"></i></div>
+                                <div class="text-xs font-bold text-slate-900 dark:text-white">Post Langsung</div>
+                                <div class="text-[10px] text-slate-500 dark:text-gray-400 leading-tight">Tayang sekarang</div>
+                            </div>
+                        </label>
+
                         <label class="cursor-pointer relative">
                             <input type="radio" name="repeat_type" value="continuous" {{ $selectedRepeatType === 'continuous' ? 'checked' : '' }} class="peer hidden" onchange="toggleRepeatFields()">
-                            <div class="p-2.5 sm:p-3 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition text-center">
+                            <div class="p-2 sm:p-2.5 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition text-center min-h-[44px]">
                                 <div class="text-indigo-600 dark:text-indigo-400 text-sm mb-0.5"><i class="fa-solid fa-arrows-rotate"></i></div>
                                 <div class="text-xs font-bold text-slate-900 dark:text-white">Kontinu</div>
                                 <div class="text-[10px] text-slate-500 dark:text-gray-400 leading-tight">Rolling harian</div>
@@ -183,7 +192,7 @@
 
                         <label class="cursor-pointer relative">
                             <input type="radio" name="repeat_type" value="once" {{ $selectedRepeatType === 'once' ? 'checked' : '' }} class="peer hidden" onchange="toggleRepeatFields()">
-                            <div class="p-2.5 sm:p-3 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition text-center">
+                            <div class="p-2 sm:p-2.5 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition text-center min-h-[44px]">
                                 <div class="text-amber-500 text-sm mb-0.5"><i class="fa-solid fa-bullseye"></i></div>
                                 <div class="text-xs font-bold text-slate-900 dark:text-white">1x Post</div>
                                 <div class="text-[10px] text-slate-500 dark:text-gray-400 leading-tight">Sekali tayang</div>
@@ -192,12 +201,23 @@
 
                         <label class="cursor-pointer relative">
                             <input type="radio" name="repeat_type" value="until_date" {{ $selectedRepeatType === 'until_date' ? 'checked' : '' }} class="peer hidden" onchange="toggleRepeatFields()">
-                            <div class="p-2.5 sm:p-3 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition text-center">
+                            <div class="p-2 sm:p-2.5 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition text-center min-h-[44px]">
                                 <div class="text-purple-500 text-sm mb-0.5"><i class="fa-regular fa-calendar-check"></i></div>
                                 <div class="text-xs font-bold text-slate-900 dark:text-white">Hingga Tgl</div>
                                 <div class="text-[10px] text-slate-500 dark:text-gray-400 leading-tight">Rentang waktu</div>
                             </div>
                         </label>
+                    </div>
+                </div>
+
+                <!-- Instant Post Banner Notice -->
+                <div id="instantNoticeWrapper" class="hidden p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-xs flex items-center space-x-3 shadow-sm">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <div>
+                        <strong class="block font-semibold">Moda Post Langsung Aktif</strong>
+                        <span>Konten akan langsung dipublikasikan sekarang juga ke akun Meta yang dipilih saat formulir disimpan. Tidak memerlukan konfigurasi tanggal atau jam tayang.</span>
                     </div>
                 </div>
 
@@ -329,7 +349,14 @@
                         <i class="fa-solid fa-photo-film text-pink-500"></i>
                         <span>Materi Media Pool</span>
                     </h2>
-                    <span id="mediaCountBadge" class="text-xs font-bold text-indigo-600 dark:text-indigo-400">0 File</span>
+                    <div class="flex items-center space-x-2">
+                        <button type="button" onclick="openMediaLibraryModal()" class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline flex items-center space-x-1 min-h-[44px]">
+                            <i class="fa-solid fa-folder-open text-[11px]"></i>
+                            <span>Pilih Library</span>
+                        </button>
+                        <span class="text-slate-300 dark:text-gray-700 text-xs">|</span>
+                        <span id="mediaCountBadge" class="text-xs font-bold text-indigo-600 dark:text-indigo-400">0 File</span>
+                    </div>
                 </div>
 
                 <!-- Dropzone Area -->
@@ -359,21 +386,62 @@
         <div class="lg:col-span-12 card-dark rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-gray-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
             <div class="flex items-center space-x-2.5 text-xs text-slate-500 dark:text-gray-400">
                 <i class="fa-solid fa-circle-check text-indigo-500 text-sm shrink-0"></i>
-                <span>Pastikan seluruh konfigurasi campaign, target akun, dan media pool sudah lengkap sebelum menyimpan.</span>
+                <span id="footerNoticeText">Pastikan seluruh konfigurasi campaign, target akun, dan media pool sudah lengkap sebelum menyimpan.</span>
             </div>
-            <div class="flex items-center space-x-3 w-full sm:w-auto justify-end">
+            <div class="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
                 <a href="{{ route('projects.index') }}" 
-                   class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 font-semibold rounded-lg text-xs transition text-center min-w-[90px]">
+                   class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 font-semibold rounded-lg text-xs transition text-center min-h-[44px] inline-flex items-center justify-center min-w-[80px]">
                     Batal
                 </a>
-                <button type="submit" 
-                        class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs transition shadow-md flex items-center justify-center space-x-2 min-w-[170px]">
+                
+                <button type="button" id="btnDirectPublish" onclick="submitForm(true)"
+                        class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg text-xs transition shadow-md flex items-center justify-center space-x-2 min-h-[44px]">
+                    <i class="fa-solid fa-paper-plane"></i>
+                    <span id="btnDirectPublishText">Simpan & Post Langsung</span>
+                </button>
+
+                <button type="button" id="btnInitSchedule" onclick="submitForm(false)"
+                        class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs transition shadow-md flex items-center justify-center space-x-2 min-h-[44px]">
                     <i class="fa-solid fa-rocket"></i>
                     <span>Simpan & Inisialisasi</span>
                 </button>
             </div>
         </div>
     </form>
+
+    <!-- Modal Media Library Picker -->
+    <div id="mediaLibraryModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="card-dark rounded-xl border border-slate-200 dark:border-gray-800 shadow-2xl max-w-2xl w-full p-5 space-y-4 max-h-[85vh] flex flex-col bg-white dark:bg-slate-900">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-gray-800">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-folder-open text-indigo-500"></i>
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-white">Pilih Media dari Library</h3>
+                </div>
+                <button type="button" onclick="closeMediaLibraryModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-lg p-1 min-h-[44px] min-w-[44px] flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div id="mediaLibraryLoading" class="py-10 text-center text-xs text-slate-500">
+                <div class="w-8 h-8 mx-auto rounded-full border-2 border-indigo-600 border-t-transparent animate-spin mb-2"></div>
+                <span>Memuat daftar media...</span>
+            </div>
+
+            <div id="mediaLibraryEmpty" class="hidden py-10 text-center text-xs text-slate-400">
+                Belum ada file media yang tersimpan di library.
+            </div>
+
+            <div id="mediaLibraryGrid" class="grid grid-cols-3 sm:grid-cols-4 gap-2.5 overflow-y-auto max-h-96 pr-1 hidden">
+            </div>
+
+            <div class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-gray-800">
+                <span class="text-[11px] text-slate-500 dark:text-gray-400">Klik media untuk menambahkan ke Media Pool campaign</span>
+                <button type="button" onclick="closeMediaLibraryModal()" class="px-4 py-2 rounded-lg bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 text-xs font-semibold hover:bg-slate-200 dark:hover:bg-gray-700 min-h-[44px]">
+                    Selesai
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection
 
@@ -586,45 +654,159 @@
         }
     }
 
+    // Media Library Modal Handling
+    let libraryMediaLoaded = false;
+
+    function openMediaLibraryModal() {
+        const modal = document.getElementById('mediaLibraryModal');
+        modal.classList.remove('hidden');
+        if (!libraryMediaLoaded) {
+            loadMediaLibrary();
+        }
+    }
+
+    function closeMediaLibraryModal() {
+        const modal = document.getElementById('mediaLibraryModal');
+        modal.classList.add('hidden');
+    }
+
+    function loadMediaLibrary() {
+        const loading = document.getElementById('mediaLibraryLoading');
+        const empty = document.getElementById('mediaLibraryEmpty');
+        const grid = document.getElementById('mediaLibraryGrid');
+
+        loading.classList.remove('hidden');
+        empty.classList.add('hidden');
+        grid.classList.add('hidden');
+
+        fetch("{{ route('schedules.recentMedia') }}", {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            loading.classList.add('hidden');
+            libraryMediaLoaded = true;
+
+            if (data.success && data.media && data.media.length > 0) {
+                grid.innerHTML = '';
+                grid.classList.remove('hidden');
+
+                data.media.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'group relative rounded-lg border border-slate-200 dark:border-gray-800 bg-slate-100 dark:bg-gray-800 overflow-hidden shadow-sm cursor-pointer aspect-square hover:border-indigo-500 transition';
+                    
+                    const isVideo = item.media_type === 'video';
+                    const mediaHtml = isVideo 
+                        ? `<video src="${item.url}" class="w-full h-full object-cover"></video>` 
+                        : `<img src="${item.url}" class="w-full h-full object-cover group-hover:scale-105 transition duration-200">`;
+
+                    card.innerHTML = `
+                        ${mediaHtml}
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-semibold">
+                            <i class="fa-solid fa-plus mr-1"></i> Tambah
+                        </div>
+                        <div class="absolute bottom-1 left-1 px-1 py-0.5 rounded bg-slate-950/80 text-[8px] text-white font-mono truncate max-w-[80%]">
+                            ${item.original_name}
+                        </div>
+                        ${isVideo ? '<div class="absolute top-1 left-1 px-1 py-0.5 rounded bg-black/60 text-[8px] text-white font-mono flex items-center space-x-0.5"><i class="fa-solid fa-video text-[7px]"></i><span>VID</span></div>' : ''}
+                    `;
+
+                    card.onclick = () => {
+                        selectLibraryMedia(item);
+                        closeMediaLibraryModal();
+                    };
+
+                    grid.appendChild(card);
+                });
+            } else {
+                empty.classList.remove('hidden');
+            }
+        })
+        .catch(err => {
+            loading.classList.add('hidden');
+            showAlert('error', 'Gagal Memuat Media', err.message);
+        });
+    }
+
+    function selectLibraryMedia(item) {
+        if (existingMedia.some(m => m.id === item.id)) {
+            showAlert('info', 'Media Sudah Ada', 'Media ini sudah ada dalam Media Pool campaign.');
+            return;
+        }
+
+        existingMedia.push({
+            id: item.id,
+            name: item.original_name,
+            url: item.url,
+            is_video: item.media_type === 'video'
+        });
+
+        renderPreviews();
+        showAlert('success', 'Media Ditambahkan', `File ${item.original_name} berhasil ditambahkan ke Media Pool.`);
+    }
+
     // Repeat Mode Handling
     function toggleRepeatFields() {
         const checkedRepeat = document.querySelector('input[name="repeat_type"]:checked');
         if (!checkedRepeat) return;
         const repeatType = checkedRepeat.value;
+        const dateInputsContainer = document.getElementById('dateInputsContainer');
         const startWrapper = document.getElementById('startDateWrapper');
         const endWrapper = document.getElementById('endDateWrapper');
         const startLabel = document.getElementById('startDateLabel');
         const startHelp = document.getElementById('startDateHelp');
         const excludeDaysWrapper = document.getElementById('excludeDaysWrapper');
         const onceNotice = document.getElementById('onceTimeNotice');
+        const instantNotice = document.getElementById('instantNoticeWrapper');
         const timeInput = document.getElementById('inputTargetTime');
+        const startDateInput = document.getElementById('inputStartDate');
+        const btnInitSchedule = document.getElementById('btnInitSchedule');
+        const btnDirectPublish = document.getElementById('btnDirectPublish');
+        const btnDirectPublishText = document.getElementById('btnDirectPublishText');
 
-        if (repeatType === 'continuous') {
-            endWrapper.classList.add('hidden');
-            startLabel.innerHTML = 'Mulai Tanggal <span class="text-rose-500">*</span>';
-            startHelp.textContent = 'Jadwal dimulai dari tanggal ini ke depan.';
-            excludeDaysWrapper.classList.remove('hidden');
-            onceNotice.classList.add('hidden');
-        } else if (repeatType === 'once') {
-            endWrapper.classList.add('hidden');
-            startLabel.innerHTML = 'Tanggal Tayang <span class="text-rose-500">*</span>';
-            startHelp.textContent = 'Konten tayang 1 kali pada tanggal ini.';
+        if (repeatType === 'instant') {
+            dateInputsContainer.classList.add('hidden');
             excludeDaysWrapper.classList.add('hidden');
-            onceNotice.classList.remove('hidden');
+            if (instantNotice) instantNotice.classList.remove('hidden');
+            startDateInput.removeAttribute('required');
+            timeInput.removeAttribute('required');
+            if (btnInitSchedule) btnInitSchedule.classList.add('hidden');
+            if (btnDirectPublishText) btnDirectPublishText.textContent = 'Post Langsung Sekarang';
+        } else {
+            dateInputsContainer.classList.remove('hidden');
+            if (instantNotice) instantNotice.classList.add('hidden');
+            startDateInput.setAttribute('required', 'required');
+            timeInput.setAttribute('required', 'required');
+            if (btnInitSchedule) btnInitSchedule.classList.remove('hidden');
+            if (btnDirectPublishText) btnDirectPublishText.textContent = 'Simpan & Post Langsung';
 
-            if (!timeInput.value) {
-                const now = new Date();
-                now.setMinutes(now.getMinutes() + 35);
-                const hours = String(now.getHours()).padStart(2, '0');
-                const minutes = String(now.getMinutes()).padStart(2, '0');
-                timeInput.value = `${hours}:${minutes}`;
+            if (repeatType === 'continuous') {
+                endWrapper.classList.add('hidden');
+                startLabel.innerHTML = 'Mulai Tanggal <span class="text-rose-500">*</span>';
+                startHelp.textContent = 'Jadwal dimulai dari tanggal ini ke depan.';
+                excludeDaysWrapper.classList.remove('hidden');
+                onceNotice.classList.add('hidden');
+            } else if (repeatType === 'once') {
+                endWrapper.classList.add('hidden');
+                startLabel.innerHTML = 'Tanggal Tayang <span class="text-rose-500">*</span>';
+                startHelp.textContent = 'Konten tayang 1 kali pada tanggal ini.';
+                excludeDaysWrapper.classList.add('hidden');
+                onceNotice.classList.remove('hidden');
+
+                if (!timeInput.value) {
+                    const now = new Date();
+                    now.setMinutes(now.getMinutes() + 35);
+                    const hours = String(now.getHours()).padStart(2, '0');
+                    const minutes = String(now.getMinutes()).padStart(2, '0');
+                    timeInput.value = `${hours}:${minutes}`;
+                }
+            } else if (repeatType === 'until_date') {
+                endWrapper.classList.remove('hidden');
+                startLabel.innerHTML = 'Mulai Tanggal <span class="text-rose-500">*</span>';
+                startHelp.textContent = 'Tanggal dimulainya jadwal posting.';
+                excludeDaysWrapper.classList.remove('hidden');
+                onceNotice.classList.add('hidden');
             }
-        } else if (repeatType === 'until_date') {
-            endWrapper.classList.remove('hidden');
-            startLabel.innerHTML = 'Mulai Tanggal <span class="text-rose-500">*</span>';
-            startHelp.textContent = 'Tanggal dimulainya jadwal posting.';
-            excludeDaysWrapper.classList.remove('hidden');
-            onceNotice.classList.add('hidden');
         }
     }
 
@@ -647,9 +829,7 @@
     }
 
     // Form Submit Handling
-    document.getElementById('formCreateProject').addEventListener('submit', function(e) {
-        e.preventDefault();
-
+    function submitForm(isDirectPublish = false) {
         const selectedAccounts = Array.from(document.querySelectorAll('.account-checkbox:checked'));
         if (selectedAccounts.length === 0) {
             showAlert('warning', 'Pilih Target Akun', 'Silakan centang minimal 1 akun target Meta untuk campaign ini.');
@@ -661,7 +841,16 @@
             return;
         }
 
-        const formData = new FormData(this);
+        const form = document.getElementById('formCreateProject');
+        const checkedRepeat = document.querySelector('input[name="repeat_type"]:checked');
+        const isInstantMode = checkedRepeat && checkedRepeat.value === 'instant';
+
+        if (!isInstantMode && !form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const formData = new FormData(form);
 
         // Append targets payload
         selectedAccounts.forEach((cb, idx) => {
@@ -673,7 +862,7 @@
             formData.append(`targets[${idx}][platform_target]`, platformVal);
         });
 
-        // Append existing media IDs dari project yang diduplikat
+        // Append existing media IDs dari project yang diduplikat atau library
         existingMedia.forEach((m) => {
             formData.append('existing_media_ids[]', m.id);
         });
@@ -683,7 +872,30 @@
             formData.append('media_files[]', f);
         });
 
-        showLoading('Menginisialisasi Campaign...', 'Menyimpan konfigurasi campaign dan membuat antrean jadwal rolling...');
+        if (isDirectPublish || isInstantMode) {
+            formData.append('direct_publish', '1');
+            Swal.fire({
+                title: 'Menerbitkan Konten Langsung...',
+                html: `
+                    <div class="space-y-3 text-center py-2">
+                        <div class="w-12 h-12 mx-auto rounded-full border-4 border-emerald-600 border-t-transparent animate-spin"></div>
+                        <p class="text-xs text-slate-600 dark:text-gray-300">
+                            Menyimpan campaign dan memproses penerbitan langsung via Meta Graph API...
+                        </p>
+                    </div>
+                `,
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                customClass: {
+                    popup: 'swal2-popup-dark',
+                    title: 'swal2-title-dark',
+                    htmlContainer: 'swal2-html-dark'
+                }
+            });
+        } else {
+            showLoading('Menginisialisasi Campaign...', 'Menyimpan konfigurasi campaign dan membuat antrean jadwal rolling...');
+        }
 
         fetch("{{ route('projects.store') }}", {
             method: 'POST',
@@ -693,18 +905,56 @@
             },
             body: formData
         })
-        .then(res => res.json())
-        .then(data => {
+        .then(res => res.json().then(data => ({ status: res.status, data })))
+        .then(({ status, data }) => {
             if (data.success) {
-                showAlert('success', 'Campaign Berhasil Dibuat!', data.message);
-                setTimeout(() => window.location.href = data.redirect || "{{ route('projects.index') }}", 1500);
+                if (data.direct_published) {
+                    let logDetails = '';
+                    if (data.logs && data.logs.length > 0) {
+                        logDetails = '<div class="mt-3 text-left max-h-32 overflow-y-auto text-[11px] p-2 bg-slate-100 dark:bg-gray-800 rounded border border-slate-200 dark:border-gray-700 space-y-1">';
+                        data.logs.forEach(l => {
+                            const isSuccess = l.action_status === 'success';
+                            logDetails += `<div class="flex items-center justify-between">
+                                <span class="font-semibold uppercase">${l.platform}:</span>
+                                <span class="${isSuccess ? 'text-emerald-500 font-bold' : 'text-rose-500'}">${l.action_status}</span>
+                            </div>`;
+                        });
+                        logDetails += '</div>';
+                    }
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Campaign Berhasil Diterbitkan!',
+                        html: `<div class="text-xs text-slate-600 dark:text-gray-300">${data.message}${logDetails}</div>`,
+                        confirmButtonColor: '#059669',
+                        confirmButtonText: 'Buka Detail Campaign',
+                        customClass: {
+                            popup: 'swal2-popup-dark',
+                            title: 'swal2-title-dark',
+                            htmlContainer: 'swal2-html-dark'
+                        }
+                    }).then(() => {
+                        window.location.href = data.redirect || "{{ route('projects.index') }}";
+                    });
+                } else {
+                    showAlert('success', 'Campaign Berhasil Dibuat!', data.message);
+                    setTimeout(() => window.location.href = data.redirect || "{{ route('projects.index') }}", 1500);
+                }
             } else {
-                showAlert('error', 'Gagal Membuat Campaign', data.message);
+                showAlert('error', 'Gagal Memproses Campaign', data.message);
             }
         })
         .catch(err => {
             showAlert('error', 'Kesalahan Sistem', err.message);
         });
+    }
+
+    // Form Submit Event Handler
+    document.getElementById('formCreateProject').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const checkedRepeat = document.querySelector('input[name="repeat_type"]:checked');
+        const isInstant = checkedRepeat && checkedRepeat.value === 'instant';
+        submitForm(isInstant);
     });
 </script>
 @endsection

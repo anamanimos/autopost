@@ -101,4 +101,30 @@ class SettingsTest extends TestCase
         ]);
         $this->assertGreaterThanOrEqual(1, $response->json('latency_ms'));
     }
+
+    public function test_admin_can_view_connected_accounts_in_meta_tab(): void
+    {
+        \App\Models\MetaCredential::create([
+            'token_status' => 'valid',
+            'user_access_token' => 'test_token',
+            'token_expires_at' => now()->addDays(60),
+        ]);
+
+        \App\Models\ConnectedAccount::create([
+            'page_id' => '123456',
+            'page_name' => 'Test FB Page',
+            'page_category' => 'Marketing',
+            'page_access_token' => 'token_fb',
+            'ig_user_id' => '987654',
+            'ig_username' => 'test_ig',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('settings.index', ['tab' => 'meta']));
+
+        $response->assertStatus(200);
+        $response->assertSee('Test FB Page');
+        $response->assertSee('test_ig');
+        $response->assertSee('Daftar Halaman Facebook & Akun Instagram', false);
+    }
 }

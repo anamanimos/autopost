@@ -638,7 +638,7 @@
                                     <span>Salin URL Ini ke Threads App (Valid OAuth Redirect URIs):</span>
                                 </label>
                                 <div class="flex items-center space-x-2">
-                                    <input type="text" readonly value="{{ $threadsCallbackUrl }}" id="inputThreadsCallbackUrl"
+                                    <input type="text" readonly value="{{ $threadsCallbackUrl ?? route('threads.callback') }}" id="inputThreadsCallbackUrl"
                                            class="w-full bg-white dark:bg-gray-950 border border-slate-300 dark:border-gray-800 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-800 dark:text-gray-300 font-mono focus:outline-none">
                                     <button type="button" onclick="copyThreadsCallbackUrl()" 
                                             class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 text-[11px] font-semibold rounded-lg border border-slate-300 dark:border-gray-700 transition flex items-center space-x-1 flex-shrink-0">
@@ -702,8 +702,9 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- SUBTAB 2: DAFTAR AKUN TERHUBUNG -->
+    <!-- SUBTAB 2: DAFTAR AKUN TERHUBUNG -->
         <div x-show="metaSubTab === 'accounts'" class="space-y-6">
             <div class="card-dark rounded-xl p-6 border border-slate-200 dark:border-gray-800 space-y-5">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-gray-800 pb-4">
@@ -986,6 +987,10 @@
                     </div>
                 @endif
             </div>
+
+        </div> <!-- Tutup SUBTAB 3: RIWAYAT & LANJUTAN (metaSubTab === 'advanced') -->
+
+    </div> <!-- Tutup TAB 2: META INTEGRATION (activeTab === 'meta') -->
 
     <!-- Modal Input Token Threads Manual -->
     <div id="manualThreadsModal" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">

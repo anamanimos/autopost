@@ -131,7 +131,7 @@ class MaintainScheduleBufferCommand extends Command
         }
 
         $mediaFiles = $project->mediaFiles;
-        if ($mediaFiles->isEmpty()) {
+        if ($mediaFiles->isEmpty() && empty(trim($project->caption ?? ''))) {
             return 0;
         }
 
@@ -163,7 +163,7 @@ class MaintainScheduleBufferCommand extends Command
         // Ambil rotasi media terakhir untuk continuity
         $lastSchedule = Schedule::where('project_campaign_id', $project->id)->latest('id')->first();
         $mediaIndex = 0;
-        if ($lastSchedule && $lastSchedule->media_file_id) {
+        if ($lastSchedule && $lastSchedule->media_file_id && $mediaFiles->isNotEmpty()) {
             $lastMediaId = $lastSchedule->media_file_id;
             $foundIdx = $mediaFiles->search(fn($item) => $item->id == $lastMediaId);
             if ($foundIdx !== false) {
@@ -207,16 +207,18 @@ class MaintainScheduleBufferCommand extends Command
             $paths = [];
             $primaryMediaFile = null;
 
-            for ($imgIdx = 0; $imgIdx < $imagesPerPost; $imgIdx++) {
-                $pickedMedia = $mediaFiles[$mediaIndex % $mediaFiles->count()];
-                if ($imgIdx === 0) {
-                    $primaryMediaFile = $pickedMedia;
+            if ($mediaFiles->isNotEmpty()) {
+                for ($imgIdx = 0; $imgIdx < $imagesPerPost; $imgIdx++) {
+                    $pickedMedia = $mediaFiles[$mediaIndex % $mediaFiles->count()];
+                    if ($imgIdx === 0) {
+                        $primaryMediaFile = $pickedMedia;
+                    }
+                    $paths[] = $pickedMedia->file_path;
+                    $mediaIndex++;
                 }
-                $paths[] = $pickedMedia->file_path;
-                $mediaIndex++;
             }
 
-            $primaryPath = $paths[0] ?? '';
+            $primaryPath = $paths[0] ?? null;
             $itemCode = 'proj_' . $project->id . '_' . $dateStr . '_' . rand(100, 999);
 
             Schedule::create([

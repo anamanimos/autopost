@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('project_campaign_id')->nullable()->constrained('project_campaigns')->nullOnDelete();
             $table->string('item_code')->unique();
             $table->foreignId('media_file_id')->nullable()->constrained('media_files')->nullOnDelete();
-            $table->string('media_path');
+            $table->string('media_path')->nullable();
             $table->json('media_paths')->nullable();
             $table->date('target_date');
             $table->string('target_time');

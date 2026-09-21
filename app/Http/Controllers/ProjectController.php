@@ -155,13 +155,35 @@ class ProjectController extends Controller
 
             $existingMediaIds = array_map('intval', $request->input('existing_media_ids', []));
             $newFiles = $request->file('media_files', []);
+            $hasMedia = !empty($existingMediaIds) || !empty($newFiles);
+            $caption = trim($request->input('caption', ''));
 
-            if (empty($existingMediaIds) && empty($newFiles)) {
-                $msg = 'Minimal pilih atau unggah 1 file media pool untuk project ini.';
-                if ($request->ajax() || $request->wantsJson()) {
-                    return response()->json(['success' => false, 'message' => $msg], 422);
+            // Periksa apakah ada target yang membutuhkan media (Instagram)
+            $targetsRequireMedia = false;
+            foreach ($request->input('targets', []) as $targetData) {
+                $platform = $targetData['platform_target'] ?? 'both';
+                if (in_array($platform, ['all', 'both', 'instagram_only', 'ig_threads'])) {
+                    $targetsRequireMedia = true;
+                    break;
                 }
-                return redirect()->back()->with('error', $msg);
+            }
+
+            if (!$hasMedia) {
+                if ($targetsRequireMedia) {
+                    $msg = 'Target akun mencakup Instagram yang mewajibkan file media (gambar/video). Silakan pilih atau unggah minimal 1 media.';
+                    if ($request->ajax() || $request->wantsJson()) {
+                        return response()->json(['success' => false, 'message' => $msg], 422);
+                    }
+                    return redirect()->back()->with('error', $msg);
+                }
+
+                if (empty($caption)) {
+                    $msg = 'Untuk postingan tanpa media (Threads / FB Page), silakan isi teks caption postingan.';
+                    if ($request->ajax() || $request->wantsJson()) {
+                        return response()->json(['success' => false, 'message' => $msg], 422);
+                    }
+                    return redirect()->back()->with('error', $msg);
+                }
             }
 
             // Validasi Aturan 1x Post: Minimal 30 menit dari jam sekarang (hanya berlaku jika bukan direct publish)
@@ -376,11 +398,31 @@ class ProjectController extends Controller
                 }
 
                 if (empty($allMediaIds)) {
-                    $msg = 'Minimal harus ada 1 file media pool untuk campaign ini.';
-                    if ($request->ajax() || $request->wantsJson()) {
-                        return response()->json(['success' => false, 'message' => $msg], 422);
+                    $targetsRequireMedia = false;
+                    foreach ($request->input('targets', []) as $targetData) {
+                        $platform = $targetData['platform_target'] ?? 'both';
+                        if (in_array($platform, ['all', 'both', 'instagram_only', 'ig_threads'])) {
+                            $targetsRequireMedia = true;
+                            break;
+                        }
                     }
-                    return redirect()->back()->with('error', $msg);
+
+                    if ($targetsRequireMedia) {
+                        $msg = 'Target akun mencakup Instagram yang mewajibkan file media (gambar/video). Silakan pilih atau unggah minimal 1 media.';
+                        if ($request->ajax() || $request->wantsJson()) {
+                            return response()->json(['success' => false, 'message' => $msg], 422);
+                        }
+                        return redirect()->back()->with('error', $msg);
+                    }
+
+                    $caption = trim($request->input('caption', ''));
+                    if (empty($caption)) {
+                        $msg = 'Untuk postingan tanpa media (Threads / FB Page), silakan isi teks caption postingan.';
+                        if ($request->ajax() || $request->wantsJson()) {
+                            return response()->json(['success' => false, 'message' => $msg], 422);
+                        }
+                        return redirect()->back()->with('error', $msg);
+                    }
                 }
 
                 $project->mediaFiles()->sync(array_unique($allMediaIds));
@@ -675,19 +717,21 @@ class ProjectController extends Controller
     public function seedOnceSchedule(ProjectCampaign $project, string $dateStr): void
     {
         $mediaFiles = $project->mediaFiles;
-        if ($mediaFiles->isEmpty()) return;
+        if ($mediaFiles->isEmpty() && empty(trim($project->caption ?? ''))) return;
 
         $imagesPerPost = max(1, $project->images_per_post ?: 1);
         $paths = [];
         $primaryMedia = null;
 
-        for ($imgIdx = 0; $imgIdx < $imagesPerPost; $imgIdx++) {
-            $picked = $mediaFiles[$imgIdx % $mediaFiles->count()];
-            if ($imgIdx === 0) $primaryMedia = $picked;
-            $paths[] = $picked->file_path;
+        if ($mediaFiles->isNotEmpty()) {
+            for ($imgIdx = 0; $imgIdx < $imagesPerPost; $imgIdx++) {
+                $picked = $mediaFiles[$imgIdx % $mediaFiles->count()];
+                if ($imgIdx === 0) $primaryMedia = $picked;
+                $paths[] = $picked->file_path;
+            }
         }
 
-        $primaryPath = $paths[0] ?? '';
+        $primaryPath = $paths[0] ?? null;
         $itemCode = 'proj_' . $project->id . '_' . $dateStr . '_' . rand(10, 99);
 
         Schedule::create([

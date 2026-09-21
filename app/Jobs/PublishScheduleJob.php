@@ -58,29 +58,34 @@ class PublishScheduleJob implements ShouldQueue
             return;
         }
 
+        $caption = trim($project->caption ?? '');
+        $contentType = $project->content_type ?? 'story';
+
         // Siapkan Media URLs yang absolut / publik
         $mediaUrls = $schedule->media_urls;
-        if (empty($mediaUrls)) {
+        $hasMedia = !empty($mediaUrls);
+
+        if (!$hasMedia && empty($caption)) {
             $schedule->update([
                 'status' => 'failed',
-                'notes' => 'File media tidak ditemukan dalam antrean jadwal.',
+                'notes' => 'Konten kosong: Tidak ada media dan tidak ada caption/teks untuk dipublikasikan.',
                 'executed_at' => Carbon::now(),
             ]);
             return;
         }
 
         // Ubah localhost URL agar sesuai konfigurasi APP_URL publik jika diset
-        $mediaUrls = array_map(function ($url) {
-            if (!str_starts_with($url, 'http://') && !str_starts_with($url, 'https://')) {
-                return url($url);
-            }
-            return $url;
-        }, $mediaUrls);
+        if ($hasMedia) {
+            $mediaUrls = array_map(function ($url) {
+                if (!str_starts_with($url, 'http://') && !str_starts_with($url, 'https://')) {
+                    return url($url);
+                }
+                return $url;
+            }, $mediaUrls);
+        }
 
-        $primaryUrl = $mediaUrls[0];
-        $isVideo = (bool) preg_match('/\.(mp4|mov)$/i', $primaryUrl);
-        $caption = $project->caption ?? '';
-        $contentType = $project->content_type ?? 'story';
+        $primaryUrl = $mediaUrls[0] ?? null;
+        $isVideo = $primaryUrl ? (bool) preg_match('/\.(mp4|mov)$/i', $primaryUrl) : false;
 
         $totalActions = 0;
         $successActions = 0;
@@ -141,7 +146,19 @@ class PublishScheduleJob implements ShouldQueue
             if ($target->targetsInstagram()) {
                 $totalActions++;
 
-                if (empty($account->ig_user_id)) {
+                if (!$hasMedia) {
+                    PublishLog::create([
+                        'schedule_id' => $schedule->id,
+                        'project_campaign_id' => $project->id,
+                        'connected_account_id' => $account->id,
+                        'platform' => 'instagram',
+                        'content_type' => $contentType,
+                        'action_status' => 'failed',
+                        'error_message' => 'Instagram mewajibkan file media (gambar atau video). Postingan teks saja tidak didukung oleh Instagram.',
+                        'executed_at' => Carbon::now(),
+                    ]);
+                    $failedActions++;
+                } elseif (empty($account->ig_user_id)) {
                     PublishLog::create([
                         'schedule_id' => $schedule->id,
                         'project_campaign_id' => $project->id,

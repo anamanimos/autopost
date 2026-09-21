@@ -193,7 +193,7 @@
                         <label class="font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
                             <i class="fa-solid fa-photo-film text-indigo-500"></i>
                             <span>Media Konten (Foto / Video)</span>
-                            <span class="text-rose-500">*</span>
+                            <span class="text-[10px] text-slate-400 font-normal lowercase">(opsional untuk Threads & FB)</span>
                         </label>
 
                         <!-- Source Switcher -->
@@ -530,9 +530,27 @@
                     return;
                 }
 
-                if (!this.fileToUpload && !this.selectedMediaId) {
-                    this.errorMessage = 'Pilih atau unggah file media (foto/video).';
-                    return;
+                const hasMedia = !!this.fileToUpload || !!this.selectedMediaId;
+                const captionText = (this.caption || '').trim();
+
+                let targetsRequireMedia = false;
+                for (const [accId, platform] of Object.entries(this.selectedTargets)) {
+                    if (['all', 'both', 'instagram_only', 'ig_threads'].includes(platform)) {
+                        targetsRequireMedia = true;
+                        break;
+                    }
+                }
+
+                if (!hasMedia) {
+                    if (targetsRequireMedia) {
+                        this.errorMessage = 'Target akun mencakup Instagram yang mewajibkan file media (foto/video). Silakan pilih media atau ubah target ke Threads Saja / FB Page Saja.';
+                        return;
+                    }
+
+                    if (!captionText) {
+                        this.errorMessage = 'Untuk postingan tanpa media (Threads / FB Page), silakan isi caption/teks postingan.';
+                        return;
+                    }
                 }
 
                 const formData = new FormData();

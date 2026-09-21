@@ -415,25 +415,51 @@ class ScheduleController extends Controller
             'targets.*.platform_target' => 'required|in:all,both,threads_only,instagram_only,facebook_only,ig_threads,fb_threads',
         ]);
 
-        if (!$request->hasFile('media_file') && !$request->filled('existing_media_id')) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Silakan pilih atau unggah minimal 1 file foto/video untuk diterbitkan.',
-            ], 422);
+        $hasMedia = $request->hasFile('media_file') || $request->filled('existing_media_id');
+        $caption = trim($request->input('caption', ''));
+
+        $targetsRequireMedia = false;
+        foreach ($request->input('targets', []) as $targetData) {
+            $platform = $targetData['platform_target'] ?? 'both';
+            if (in_array($platform, ['all', 'both', 'instagram_only', 'ig_threads'])) {
+                $targetsRequireMedia = true;
+                break;
+            }
+        }
+
+        if (!$hasMedia) {
+            if ($targetsRequireMedia) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Target akun mencakup Instagram yang mewajibkan file media (gambar/video). Silakan pilih atau unggah media.',
+                ], 422);
+            }
+
+            if (empty($caption)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Untuk postingan tanpa media (Threads / FB Page), silakan isi teks caption postingan.',
+                ], 422);
+            }
         }
 
         $mediaFile = null;
         if ($request->hasFile('media_file')) {
             $mediaFile = $this->saveUploadedMedia($request->file('media_file'));
+            if (!$mediaFile) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File media tidak ditemukan atau gagal diproses.',
+                ], 422);
+            }
         } elseif ($request->filled('existing_media_id')) {
             $mediaFile = MediaFile::find($request->existing_media_id);
-        }
-
-        if (!$mediaFile) {
-            return response()->json([
-                'success' => false,
-                'message' => 'File media tidak ditemukan atau gagal diproses.',
-            ], 422);
+            if (!$mediaFile) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File media yang dipilih dari library tidak ditemukan.',
+                ], 422);
+            }
         }
 
         $now = Carbon::now();
@@ -442,7 +468,7 @@ class ScheduleController extends Controller
         $project = ProjectCampaign::create([
             'name' => $campaignName,
             'content_type' => $request->content_type,
-            'caption' => $request->caption ? trim($request->caption) : null,
+            'caption' => $caption ?: null,
             'target_time' => $now->format('H:i'),
             'images_per_post' => 1,
             'repeat_type' => 'once',
@@ -461,15 +487,17 @@ class ScheduleController extends Controller
             ]);
         }
 
-        $project->mediaFiles()->sync([$mediaFile->id]);
+        if ($mediaFile) {
+            $project->mediaFiles()->sync([$mediaFile->id]);
+        }
 
         $itemCode = 'direct_' . $project->id . '_' . $now->format('Ymd_His') . '_' . rand(10, 99);
         $schedule = Schedule::create([
             'project_campaign_id' => $project->id,
             'item_code' => $itemCode,
-            'media_file_id' => $mediaFile->id,
-            'media_path' => $mediaFile->file_path,
-            'media_paths' => [$mediaFile->file_path],
+            'media_file_id' => $mediaFile?->id,
+            'media_path' => $mediaFile?->file_path ?? null,
+            'media_paths' => $mediaFile ? [$mediaFile->file_path] : [],
             'target_date' => $now->toDateString(),
             'target_time' => $now->format('H:i'),
             'status' => 'pending',

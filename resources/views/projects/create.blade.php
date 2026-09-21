@@ -364,6 +364,7 @@
                         <span>Materi Media Pool</span>
                     </h2>
                     <div class="flex items-center space-x-2">
+                        <span class="text-[10px] text-slate-400 dark:text-gray-500 hidden sm:inline">(Opsional untuk Threads & FB)</span>
                         <button type="button" onclick="openMediaLibraryModal()" class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline flex items-center space-x-1 min-h-[44px]">
                             <i class="fa-solid fa-folder-open text-[11px]"></i>
                             <span>Pilih Library</span>
@@ -850,9 +851,32 @@
             return;
         }
 
-        if (selectedFiles.length === 0 && existingMedia.length === 0) {
-            showAlert('warning', 'Unggah Media', 'Silakan pilih atau tarik minimal 1 file gambar atau video ke area Media Pool.');
-            return;
+        const hasMedia = selectedFiles.length > 0 || existingMedia.length > 0;
+        const captionInput = document.querySelector('textarea[name="caption"]');
+        const captionVal = captionInput ? captionInput.value.trim() : '';
+
+        // Cek apakah ada target yang membutuhkan media (Instagram)
+        let targetsRequireMedia = false;
+        selectedAccounts.forEach((cb) => {
+            const accId = cb.value;
+            const platformSelect = document.querySelector(`select[name="platform_targets[${accId}]"]`);
+            const platformVal = platformSelect ? platformSelect.value : 'both';
+            if (['all', 'both', 'instagram_only', 'ig_threads'].includes(platformVal)) {
+                targetsRequireMedia = true;
+            }
+        });
+
+        if (!hasMedia) {
+            if (targetsRequireMedia) {
+                showAlert('warning', 'Unggah Media', 'Target akun yang dipilih mencakup Instagram yang mewajibkan file media (gambar/video). Silakan pilih atau tarik minimal 1 file ke Media Pool, atau ubah target akun ke Threads Saja / FB Page Saja.');
+                return;
+            }
+
+            if (!captionVal) {
+                showAlert('warning', 'Teks Caption Wajib', 'Untuk postingan tanpa media (Threads / FB Page), silakan isi teks caption postingan terlebih dahulu.');
+                if (captionInput) captionInput.focus();
+                return;
+            }
         }
 
         const form = document.getElementById('formCreateProject');

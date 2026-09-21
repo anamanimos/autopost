@@ -82,8 +82,10 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-48 overflow-y-auto pr-1">
                             @foreach($modalAccounts as $acc)
                                 @php
-                                    $hasIg = !empty($acc->instagram_business_id);
-                                    $hasFb = !empty($acc->facebook_page_id);
+                                    $hasIg = !empty($acc->ig_user_id) || !empty($acc->instagram_business_id);
+                                    $hasFb = !empty($acc->page_id) || !empty($acc->facebook_page_id);
+                                    $hasThreads = $acc->hasThreads();
+                                    $defaultPlatform = $hasThreads ? 'all' : 'both';
                                 @endphp
                                 <div class="p-3 rounded-lg border transition-all text-xs flex flex-col justify-between gap-2"
                                      :class="isAccountSelected({{ $acc->id }}) ? 'bg-indigo-50/50 dark:bg-indigo-950/30 border-indigo-500 ring-1 ring-indigo-500/50' : 'bg-slate-50/60 dark:bg-gray-800/40 border-slate-200 dark:border-gray-700 hover:border-slate-300 dark:hover:border-gray-600'">
@@ -91,7 +93,7 @@
                                     <label class="flex items-start space-x-2.5 cursor-pointer select-none">
                                         <input type="checkbox" 
                                                value="{{ $acc->id }}" 
-                                               @change="toggleAccount({{ $acc->id }})"
+                                               @change="toggleAccount({{ $acc->id }}, '{{ $defaultPlatform }}')"
                                                :checked="isAccountSelected({{ $acc->id }})"
                                                class="mt-0.5 rounded border-slate-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500">
                                         <div class="min-w-0 flex-1">
@@ -107,7 +109,12 @@
                                                         <i class="fa-brands fa-facebook mr-1"></i> FB
                                                     </span>
                                                 @endif
-                                                @if(!$hasIg && !$hasFb)
+                                                @if($hasThreads)
+                                                    <span class="inline-flex items-center text-slate-700 dark:text-slate-300 font-medium">
+                                                        <i class="fa-brands fa-threads mr-1"></i> Threads
+                                                    </span>
+                                                @endif
+                                                @if(!$hasIg && !$hasFb && !$hasThreads)
                                                     <span class="text-slate-400 italic">Belum terhubung</span>
                                                 @endif
                                             </div>
@@ -120,7 +127,15 @@
                                             <span class="text-slate-500 dark:text-gray-400">Target:</span>
                                             <select @change="updatePlatformTarget({{ $acc->id }}, $event.target.value)" 
                                                     class="py-1 px-2 text-[11px] rounded bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-600 text-slate-700 dark:text-gray-200 focus:outline-none focus:border-indigo-500">
-                                                @if($hasIg && $hasFb)
+                                                @if($hasThreads)
+                                                    <option value="all">Semua (FB, IG & Threads)</option>
+                                                    <option value="both">Facebook & Instagram</option>
+                                                    <option value="threads_only">Threads Saja</option>
+                                                    <option value="ig_threads">Instagram & Threads</option>
+                                                    <option value="fb_threads">Facebook & Threads</option>
+                                                    @if($hasIg) <option value="instagram_only">Instagram Saja</option> @endif
+                                                    @if($hasFb) <option value="facebook_only">Facebook Saja</option> @endif
+                                                @elseif($hasIg && $hasFb)
                                                     <option value="both">Keduanya (FB & IG)</option>
                                                     <option value="instagram_only">Instagram Saja</option>
                                                     <option value="facebook_only">Facebook Saja</option>
@@ -428,11 +443,11 @@
                 return accountId in this.selectedTargets;
             },
 
-            toggleAccount(accountId) {
+            toggleAccount(accountId, defaultPlatform = 'both') {
                 if (accountId in this.selectedTargets) {
                     delete this.selectedTargets[accountId];
                 } else {
-                    this.selectedTargets[accountId] = 'both';
+                    this.selectedTargets[accountId] = defaultPlatform;
                 }
             },
 

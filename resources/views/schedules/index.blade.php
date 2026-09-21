@@ -1145,7 +1145,9 @@
                 @endforeach
             ],
             platformOptions: [
-                { value: 'both', label: 'FB + IG', icon: 'fa-solid fa-globe' },
+                { value: 'all', label: 'Semua Platform', icon: 'fa-solid fa-globe' },
+                { value: 'both', label: 'FB + IG', icon: 'fa-solid fa-share-nodes' },
+                { value: 'threads_only', label: 'Threads Saja', icon: 'fa-brands fa-threads' },
                 { value: 'instagram_only', label: 'Instagram', icon: 'fa-brands fa-instagram' },
                 { value: 'facebook_only', label: 'Facebook', icon: 'fa-brands fa-facebook' },
             ],
@@ -1713,17 +1715,32 @@
                 let html = '<div class="divide-y divide-slate-200/80 dark:divide-gray-800/80">';
                 logs.forEach(l => {
                     const isIg = l.platform === 'instagram';
+                    const isThreads = l.platform === 'threads';
                     const isSuccess = l.action_status === 'success';
                     const isSkipped = l.action_status === 'skipped';
                     const statusClass = isSuccess ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-400' : (isSkipped ? 'bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-400' : 'bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-400');
+
+                    let platformLabel = 'Facebook Page';
+                    let platformIcon = 'fa-brands fa-facebook';
+                    let platformColor = 'text-blue-600 dark:text-blue-400';
+
+                    if (isIg) {
+                        platformLabel = 'Instagram';
+                        platformIcon = 'fa-brands fa-instagram';
+                        platformColor = 'text-pink-600 dark:text-pink-400';
+                    } else if (isThreads) {
+                        platformLabel = 'Threads';
+                        platformIcon = 'fa-brands fa-threads';
+                        platformColor = 'text-slate-900 dark:text-slate-100';
+                    }
 
                     html += `
                         <div class="py-3 space-y-1.5">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center space-x-2">
-                                    <span class="text-sm ${isIg ? 'text-pink-600 dark:text-pink-400' : 'text-blue-600 dark:text-blue-400'} font-bold">
-                                        <i class="fa-brands ${isIg ? 'fa-instagram' : 'fa-facebook'} mr-1"></i>
-                                        ${isIg ? 'Instagram' : 'Facebook Page'}
+                                    <span class="text-sm ${platformColor} font-bold">
+                                        <i class="${platformIcon} mr-1"></i>
+                                        ${platformLabel}
                                     </span>
                                     <span class="text-xs text-slate-600 dark:text-gray-300 font-medium">(${l.connected_account ? l.connected_account.page_name : '-'})</span>
                                 </div>

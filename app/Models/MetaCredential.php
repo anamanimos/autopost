@@ -11,6 +11,8 @@ class MetaCredential extends Model
     protected $fillable = [
         'app_id',
         'app_secret',
+        'threads_app_id',
+        'threads_app_secret',
         'graph_version',
         'user_access_token',
         'system_user_token',
@@ -24,6 +26,7 @@ class MetaCredential extends Model
 
     protected $casts = [
         'app_secret' => 'encrypted',
+        'threads_app_secret' => 'encrypted',
         'user_access_token' => 'encrypted',
         'system_user_token' => 'encrypted',
         'token_expires_at' => 'datetime',
@@ -44,5 +47,15 @@ class MetaCredential extends Model
             return $this->system_user_token;
         }
         return $this->user_access_token;
+    }
+
+    public function getThreadsAppId(): ?string
+    {
+        return $this->threads_app_id ?: $this->app_id ?: env('THREADS_APP_ID', env('META_APP_ID'));
+    }
+
+    public function getThreadsAppSecret(): ?string
+    {
+        return $this->threads_app_secret ?: $this->app_secret ?: env('THREADS_APP_SECRET', env('META_APP_SECRET'));
     }
 }

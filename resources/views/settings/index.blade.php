@@ -567,34 +567,85 @@
                         @csrf
 
                         <div>
-                            <label class="block font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider text-[10px] mb-1">
-                                Meta App ID <span class="text-rose-500">*</span>
-                            </label>
-                            <input type="text" name="app_id" value="{{ $credential->app_id }}" required placeholder="Contoh: 123456789012345"
-                                   class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition font-mono">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider text-[10px] mb-1">
+                                    Meta App ID <span class="text-rose-500">*</span>
+                                </label>
+                                <input type="text" name="app_id" value="{{ $credential->app_id }}" required placeholder="Contoh: 123456789012345"
+                                       class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition font-mono">
+                            </div>
+
+                            <div>
+                                <label class="block font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider text-[10px] mb-1">
+                                    Meta App Secret
+                                </label>
+                                <input type="password" name="app_secret" placeholder="{{ $credential->app_secret ? '•••••••••••••••• (Tersimpan)' : 'Masukkan App Secret' }}"
+                                       class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition font-mono">
+                            </div>
                         </div>
 
-                        <div>
-                            <label class="block font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider text-[10px] mb-1">
-                                Meta App Secret <span class="text-rose-500">*</span>
-                            </label>
-                            <input type="password" name="app_secret" placeholder="{{ $credential->app_secret ? '•••••••••••••••••••••••• (Tersimpan)' : 'Masukkan App Secret' }}"
-                                   class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition font-mono">
+                        <!-- Kredensial Khusus Threads (Opsional jika menggunakan App yang sama) -->
+                        <div class="p-3 bg-slate-100/70 dark:bg-gray-900/60 rounded-lg border border-slate-200 dark:border-gray-800 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[11px] font-bold text-slate-800 dark:text-gray-200 flex items-center space-x-1.5">
+                                    <i class="fa-brands fa-threads text-sm"></i>
+                                    <span>Kredensial Aplikasi Threads (Opsional)</span>
+                                </span>
+                                <span class="text-[9px] text-slate-400 dark:text-gray-500">Kosongkan jika memakai Meta App di atas</span>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block font-semibold text-slate-600 dark:text-gray-400 uppercase tracking-wider text-[9px] mb-1">
+                                        Threads App ID
+                                    </label>
+                                    <input type="text" name="threads_app_id" value="{{ $credential->threads_app_id }}" placeholder="Opsional / default Meta App ID"
+                                           class="w-full bg-white dark:bg-gray-950 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono">
+                                </div>
+                                <div>
+                                    <label class="block font-semibold text-slate-600 dark:text-gray-400 uppercase tracking-wider text-[9px] mb-1">
+                                        Threads App Secret
+                                    </label>
+                                    <input type="password" name="threads_app_secret" placeholder="{{ $credential->threads_app_secret ? '•••••••••••••••• (Tersimpan)' : 'Opsional / default Meta Secret' }}"
+                                           class="w-full bg-white dark:bg-gray-950 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono">
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Auto-Generated Redirect URI -->
-                        <div class="bg-slate-50 dark:bg-gray-900/90 p-3 rounded-lg border border-slate-200 dark:border-gray-800 space-y-1">
-                            <label class="block text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
-                                Salin URL Ini ke Meta App (Valid OAuth Redirect URIs):
-                            </label>
-                            <div class="flex items-center space-x-2">
-                                <input type="text" readonly value="{{ $callbackUrl }}" id="inputCallbackUrl"
-                                       class="w-full bg-white dark:bg-gray-950 border border-slate-300 dark:border-gray-800 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-800 dark:text-gray-300 font-mono focus:outline-none">
-                                <button type="button" onclick="copyCallbackUrl()" 
-                                        class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 text-[11px] font-semibold rounded-lg border border-slate-300 dark:border-gray-700 transition flex items-center space-x-1 flex-shrink-0">
-                                    <i class="fa-regular fa-copy"></i>
-                                    <span id="copyBtnText">Salin</span>
-                                </button>
+                        <!-- Auto-Generated Redirect URIs -->
+                        <div class="space-y-2">
+                            <!-- 1. Meta Facebook / IG Redirect URI -->
+                            <div class="bg-slate-50 dark:bg-gray-900/90 p-3 rounded-lg border border-slate-200 dark:border-gray-800 space-y-1">
+                                <label class="block text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
+                                    Salin URL Ini ke Meta App (Facebook Login Redirect URI):
+                                </label>
+                                <div class="flex items-center space-x-2">
+                                    <input type="text" readonly value="{{ $callbackUrl }}" id="inputCallbackUrl"
+                                           class="w-full bg-white dark:bg-gray-950 border border-slate-300 dark:border-gray-800 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-800 dark:text-gray-300 font-mono focus:outline-none">
+                                    <button type="button" onclick="copyCallbackUrl()" 
+                                            class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 text-[11px] font-semibold rounded-lg border border-slate-300 dark:border-gray-700 transition flex items-center space-x-1 flex-shrink-0">
+                                        <i class="fa-regular fa-copy"></i>
+                                        <span id="copyBtnText">Salin</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- 2. Meta Threads Redirect URI -->
+                            <div class="bg-slate-50 dark:bg-gray-900/90 p-3 rounded-lg border border-slate-200 dark:border-gray-800 space-y-1">
+                                <label class="block text-[10px] font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider flex items-center space-x-1">
+                                    <i class="fa-brands fa-threads"></i>
+                                    <span>Salin URL Ini ke Threads App (Valid OAuth Redirect URIs):</span>
+                                </label>
+                                <div class="flex items-center space-x-2">
+                                    <input type="text" readonly value="{{ $threadsCallbackUrl }}" id="inputThreadsCallbackUrl"
+                                           class="w-full bg-white dark:bg-gray-950 border border-slate-300 dark:border-gray-800 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-800 dark:text-gray-300 font-mono focus:outline-none">
+                                    <button type="button" onclick="copyThreadsCallbackUrl()" 
+                                            class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 text-[11px] font-semibold rounded-lg border border-slate-300 dark:border-gray-700 transition flex items-center space-x-1 flex-shrink-0">
+                                        <i class="fa-regular fa-copy"></i>
+                                        <span id="copyThreadsBtnText">Salin</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -602,7 +653,7 @@
 
                         <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs transition shadow flex items-center justify-center space-x-2">
                             <i class="fa-solid fa-floppy-disk"></i>
-                            <span>Simpan Kredensial App</span>
+                            <span>Simpan Seluruh Kredensial App</span>
                         </button>
                     </form>
                 </div>
@@ -765,6 +816,78 @@
                                     @endif
                                 </div>
 
+                                <!-- Linked Threads Info -->
+                                <div class="p-3 bg-white dark:bg-gray-950/80 rounded-lg border border-slate-200 dark:border-gray-800/80 space-y-2 text-xs">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Threads Terhubung:</span>
+                                        @if($acc->hasThreads())
+                                            <span class="text-[10px] text-slate-900 dark:text-slate-100 font-bold flex items-center space-x-1">
+                                                <i class="fa-brands fa-threads"></i>
+                                                <span>Connected</span>
+                                            </span>
+                                        @else
+                                            <span class="text-[10px] text-slate-400 dark:text-gray-500 italic">Belum Terhubung</span>
+                                        @endif
+                                    </div>
+
+                                    @if($acc->hasThreads())
+                                        <div class="flex items-center space-x-2.5">
+                                            @if($acc->threads_profile_picture_url)
+                                                <img src="{{ $acc->threads_profile_picture_url }}" class="w-7 h-7 rounded-full object-cover border border-slate-400/40">
+                                            @else
+                                                <div class="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center text-xs">
+                                                    <i class="fa-brands fa-threads"></i>
+                                                </div>
+                                            @endif
+                                            <div class="min-w-0 flex-1">
+                                                <span class="font-bold text-slate-900 dark:text-slate-100 block leading-tight truncate">&#64;{{ $acc->threads_username }}</span>
+                                                <span class="text-[10px] text-slate-500 dark:text-gray-500 font-mono block truncate">Threads ID: {{ $acc->threads_user_id }}</span>
+                                            </div>
+                                            <div class="flex items-center space-x-1 shrink-0">
+                                                <button onclick="testThreadsConnection({{ $acc->id }}, '{{ addslashes($acc->threads_username) }}')" 
+                                                        class="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-gray-800 text-amber-600 dark:text-amber-400 transition" 
+                                                        title="Tes Koneksi Threads">
+                                                    <i class="fa-solid fa-bolt text-xs"></i>
+                                                </button>
+                                                <button onclick="disconnectThreads({{ $acc->id }}, '{{ addslashes($acc->threads_username) }}')" 
+                                                        class="p-1.5 rounded-md hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-500 transition" 
+                                                        title="Putuskan Threads">
+                                                    <i class="fa-solid fa-link-slash text-xs"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Rate Limit Bar Threads (250 Post / 24 jam) -->
+                                        <div class="pt-1.5 border-t border-slate-100 dark:border-gray-800/60 space-y-1">
+                                            <div class="flex items-center justify-between text-[10px] text-slate-500 dark:text-gray-400">
+                                                <span>Kuota Threads (24 Jam):</span>
+                                                <strong class="text-indigo-600 dark:text-indigo-400 font-mono">{{ $acc->threads_publishing_quota_usage }} / {{ $acc->threads_publishing_quota_total }} Post</strong>
+                                            </div>
+                                            <div class="w-full bg-slate-200 dark:bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                                                @php
+                                                    $threadsPct = min(100, round(($acc->threads_publishing_quota_usage / max(1, $acc->threads_publishing_quota_total)) * 100));
+                                                    $threadsBarColor = $threadsPct > 80 ? 'bg-rose-500' : ($threadsPct > 50 ? 'bg-amber-500' : 'bg-emerald-500');
+                                                @endphp
+                                                <div class="{{ $threadsBarColor }} h-1.5 rounded-full" style="width: {{ $threadsPct }}%"></div>
+                                            </div>
+                                        </div>
+                                    @else
+                                        <div class="pt-1 flex items-center justify-between gap-2">
+                                            <a href="{{ route('threads.oauth', ['account_id' => $acc->id]) }}" 
+                                               class="flex-1 py-1.5 px-2 bg-slate-900 hover:bg-black text-white dark:bg-slate-800 dark:hover:bg-slate-700 text-[10px] font-semibold rounded-lg text-center transition flex items-center justify-center space-x-1 shadow-sm min-h-[36px]">
+                                                <i class="fa-brands fa-threads"></i>
+                                                <span>Hubungkan Threads</span>
+                                            </a>
+                                            <button type="button" 
+                                                    onclick="openManualThreadsTokenModal({{ $acc->id }}, '{{ addslashes($acc->page_name) }}')" 
+                                                    class="py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 text-[10px] font-semibold rounded-lg transition min-h-[36px]" 
+                                                    title="Input Token Threads Manual">
+                                                <i class="fa-solid fa-key"></i>
+                                            </button>
+                                        </div>
+                                    @endif
+                                </div>
+
                                 <!-- Footer Card Action -->
                                 <div class="flex items-center justify-between pt-1 text-[11px] text-slate-500 dark:text-gray-400">
                                     <span>Kategori: <strong class="text-slate-700 dark:text-gray-300">{{ $acc->page_category ?: 'Bisnis' }}</strong></span>
@@ -864,8 +987,62 @@
                 @endif
             </div>
 
-        </div>
+    <!-- Modal Input Token Threads Manual -->
+    <div id="manualThreadsModal" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="card-dark rounded-xl max-w-lg w-full border border-slate-200 dark:border-gray-800 p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-gray-800 pb-3">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+                    <i class="fa-brands fa-threads text-base"></i>
+                    <span>Input Token Threads Manual</span>
+                </h3>
+                <button type="button" onclick="closeManualThreadsTokenModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-base">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
 
+            <form id="formManualThreads" onsubmit="submitManualThreadsToken(event)" class="space-y-4 text-xs">
+                <input type="hidden" id="threadsAccountId" name="account_id">
+
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider text-[10px] mb-1">
+                        Akun Target
+                    </label>
+                    <input type="text" id="threadsAccountName" readonly 
+                           class="w-full bg-slate-100 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-700 dark:text-gray-300 font-semibold focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider text-[10px] mb-1">
+                        Threads User ID (Opsional jika token sudah mencakup user profil)
+                    </label>
+                    <input type="text" name="threads_user_id" id="inputThreadsUserId" placeholder="Contoh: 17841400000000000"
+                           class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono">
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider text-[10px] mb-1">
+                        Access Token Threads <span class="text-rose-500">*</span>
+                    </label>
+                    <textarea name="threads_access_token" id="inputThreadsToken" required rows="3" placeholder="Tempelkan token Threads (THQ... atau token dari Threads Graph API)"
+                              class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono break-all"></textarea>
+                </div>
+
+                <div class="p-3 bg-slate-50 dark:bg-gray-900/90 rounded-lg border border-slate-200 dark:border-gray-800 text-[11px] text-slate-600 dark:text-gray-400 space-y-1">
+                    <span class="font-semibold text-slate-800 dark:text-gray-200 block">Catatan Token:</span>
+                    <p>Sistem akan otomatis memvalidasi token ke endpoint Threads API dan menukarkannya menjadi Long-Lived Token (~60 hari) serta mengambil username & kuota publikasi.</p>
+                </div>
+
+                <div class="pt-3 border-t border-slate-200 dark:border-gray-800 flex items-center justify-end space-x-2">
+                    <button type="button" onclick="closeManualThreadsTokenModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 rounded-lg text-xs font-semibold transition min-h-[44px]">
+                        Batal
+                    </button>
+                    <button type="submit" id="btnSubmitThreadsToken" class="px-5 py-2 bg-slate-900 hover:bg-black text-white dark:bg-indigo-600 dark:hover:bg-indigo-500 font-semibold rounded-lg text-xs transition shadow flex items-center space-x-1.5 min-h-[44px]">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Simpan & Tautkan Threads</span>
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
 </div>
@@ -1114,6 +1291,135 @@
                 .then(data => {
                     if (data.success) {
                         showAlert('success', 'Berhasil Dihapus!', data.message);
+                        setTimeout(() => window.location.reload(), 1200);
+                    } else {
+                        showAlert('error', 'Gagal', data.message);
+                    }
+                })
+                .catch(err => {
+                    showAlert('error', 'Error', err.message);
+                });
+            }
+        });
+    }
+
+    // =========================================================================
+    // THREADS API SCRIPTS
+    // =========================================================================
+    function copyThreadsCallbackUrl() {
+        const input = document.getElementById('inputThreadsCallbackUrl');
+        input.select();
+        navigator.clipboard.writeText(input.value);
+        document.getElementById('copyThreadsBtnText').textContent = 'Tersalin!';
+        setTimeout(() => document.getElementById('copyThreadsBtnText').textContent = 'Salin', 2000);
+    }
+
+    function openManualThreadsTokenModal(accountId, pageName) {
+        document.getElementById('threadsAccountId').value = accountId;
+        document.getElementById('threadsAccountName').value = pageName;
+        document.getElementById('inputThreadsToken').value = '';
+        document.getElementById('inputThreadsUserId').value = '';
+        document.getElementById('manualThreadsModal').classList.remove('hidden');
+    }
+
+    function closeManualThreadsTokenModal() {
+        document.getElementById('manualThreadsModal').classList.add('hidden');
+    }
+
+    function submitManualThreadsToken(e) {
+        e.preventDefault();
+        const accountId = document.getElementById('threadsAccountId').value;
+        const token = document.getElementById('inputThreadsToken').value;
+        const threadsUserId = document.getElementById('inputThreadsUserId').value;
+        const btn = document.getElementById('btnSubmitThreadsToken');
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Memvalidasi...';
+
+        fetch("{{ route('threads.saveManualToken') }}", {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+                account_id: accountId,
+                threads_access_token: token,
+                threads_user_id: threadsUserId
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', 'Berhasil!', data.message);
+                closeManualThreadsTokenModal();
+                setTimeout(() => window.location.reload(), 1200);
+            } else {
+                showAlert('error', 'Gagal', data.message || 'Gagal menyimpan token Threads.');
+            }
+        })
+        .catch(err => {
+            showAlert('error', 'Error', err.message);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> Simpan & Tautkan Threads';
+        });
+    }
+
+    function testThreadsConnection(id, username) {
+        showLoading('Menguji Koneksi Threads...', `Menghubungi profil Threads @${username}...`);
+        fetch(`/threads/${id}/test-connection`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const limitText = data.limit ? `\nKuota Terpakai: ${data.limit.quota_usage || 0} / 250 Post` : '';
+                showAlert('success', 'Koneksi Threads Valid!', data.message + limitText);
+            } else {
+                showAlert('error', 'Koneksi Gagal', data.message);
+            }
+        })
+        .catch(err => {
+            showAlert('error', 'Error', err.message);
+        });
+    }
+
+    function disconnectThreads(id, username) {
+        Swal.fire({
+            title: `Putuskan Threads @${username}?`,
+            text: 'Token Threads akan dihapus dan akun tidak lagi menerima postingan Threads otomatis.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e11d48',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Ya, Putuskan',
+            cancelButtonText: 'Batal',
+            customClass: {
+                popup: 'swal2-popup-dark',
+                title: 'swal2-title-dark',
+                htmlContainer: 'swal2-html-dark'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                showLoading('Memutuskan...', 'Menghapus kredensial Threads...');
+                fetch(`/threads/${id}/disconnect`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert('success', 'Diputuskan', data.message);
                         setTimeout(() => window.location.reload(), 1200);
                     } else {
                         showAlert('error', 'Gagal', data.message);

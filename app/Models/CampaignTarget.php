@@ -25,11 +25,16 @@ class CampaignTarget extends Model
 
     public function targetsInstagram(): bool
     {
-        return in_array($this->platform_target, ['both', 'instagram_only']);
+        return in_array($this->platform_target, ['all', 'both', 'instagram_only', 'ig_threads']);
     }
 
     public function targetsFacebook(): bool
     {
-        return in_array($this->platform_target, ['both', 'facebook_only']);
+        return in_array($this->platform_target, ['all', 'both', 'facebook_only', 'fb_threads']);
+    }
+
+    public function targetsThreads(): bool
+    {
+        return in_array($this->platform_target, ['all', 'threads_only', 'ig_threads', 'fb_threads']);
     }
 }

@@ -23,6 +23,8 @@ class MetaIntegrationController extends Controller
         $request->validate([
             'app_id' => 'required|string',
             'app_secret' => 'nullable|string',
+            'threads_app_id' => 'nullable|string',
+            'threads_app_secret' => 'nullable|string',
             'graph_version' => 'required|string',
             'webhook_verify_token' => 'nullable|string',
         ]);
@@ -30,6 +32,7 @@ class MetaIntegrationController extends Controller
         $credential = MetaCredential::getActive();
         $data = [
             'app_id' => trim($request->app_id),
+            'threads_app_id' => $request->threads_app_id ? trim($request->threads_app_id) : null,
             'graph_version' => trim($request->graph_version),
             'webhook_verify_token' => $request->webhook_verify_token ? trim($request->webhook_verify_token) : null,
         ];
@@ -38,9 +41,13 @@ class MetaIntegrationController extends Controller
             $data['app_secret'] = trim($request->app_secret);
         }
 
+        if ($request->filled('threads_app_secret')) {
+            $data['threads_app_secret'] = trim($request->threads_app_secret);
+        }
+
         $credential->update($data);
 
-        return redirect()->route('settings.index', ['tab' => 'meta'])->with('success', 'Kredensial Meta App berhasil disimpan!');
+        return redirect()->route('settings.index', ['tab' => 'meta'])->with('success', 'Kredensial Meta & Threads App berhasil disimpan!');
     }
 
     public function saveManualToken(Request $request, MetaGraphService $metaService)

@@ -114,7 +114,7 @@ class ScheduleController extends Controller
         ]);
     }
 
-    public function runSingle(Request $request, $id, MetaGraphService $metaService)
+    public function runSingle(Request $request, $id, MetaGraphService $metaService, ?\App\Services\ThreadsService $threadsService = null)
     {
         try {
             $schedule = Schedule::findOrFail($id);
@@ -127,7 +127,7 @@ class ScheduleController extends Controller
                 ]);
             }
 
-            (new PublishScheduleJob($schedule))->handle($metaService);
+            (new PublishScheduleJob($schedule))->handle($metaService, $threadsService ?? app(\App\Services\ThreadsService::class));
 
             $schedule->refresh();
             $schedule->load('publishLogs.connectedAccount');
@@ -400,8 +400,10 @@ class ScheduleController extends Controller
         ]);
     }
 
-    public function directPost(Request $request, MetaGraphService $metaService)
+    public function directPost(Request $request, MetaGraphService $metaService, ?\App\Services\ThreadsService $threadsService = null)
     {
+        $threadsService = $threadsService ?? app(\App\Services\ThreadsService::class);
+
         $request->validate([
             'name' => 'nullable|string|max:255',
             'content_type' => 'required|in:story,post',
@@ -410,7 +412,7 @@ class ScheduleController extends Controller
             'existing_media_id' => 'nullable|integer|exists:media_files,id',
             'targets' => 'required|array|min:1',
             'targets.*.account_id' => 'required|exists:connected_accounts,id',
-            'targets.*.platform_target' => 'required|in:both,instagram_only,facebook_only',
+            'targets.*.platform_target' => 'required|in:all,both,threads_only,instagram_only,facebook_only,ig_threads,fb_threads',
         ]);
 
         if (!$request->hasFile('media_file') && !$request->filled('existing_media_id')) {
@@ -475,7 +477,7 @@ class ScheduleController extends Controller
         ]);
 
         try {
-            (new PublishScheduleJob($schedule))->handle($metaService);
+            (new PublishScheduleJob($schedule))->handle($metaService, $threadsService);
         } catch (\Throwable $e) {
             $schedule->update([
                 'status' => 'failed',
@@ -490,7 +492,7 @@ class ScheduleController extends Controller
         $isSuccess = in_array($schedule->status, ['completed', 'partially_failed']);
 
         $message = match($schedule->status) {
-            'completed' => 'Konten berhasil diterbitkan ke Meta (Facebook & Instagram)!',
+            'completed' => 'Konten berhasil diterbitkan ke Meta (Facebook, Instagram & Threads)!',
             'partially_failed' => 'Konten diterbitkan sebagian. Periksa catatan log.',
             default => 'Penerbitan gagal diproses. Periksa catatan log detail.',
         };

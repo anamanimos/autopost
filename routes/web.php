@@ -66,6 +66,15 @@ Route::middleware('auth')->group(function () {
         Route::delete('/accounts/{id}', [MetaIntegrationController::class, 'deleteAccount'])->name('deleteAccount');
     });
 
+    // Threads API Integration Routes
+    Route::prefix('threads')->name('threads.')->group(function () {
+        Route::get('/oauth', [\App\Http\Controllers\ThreadsIntegrationController::class, 'redirectToOAuth'])->name('oauth');
+        Route::get('/callback', [\App\Http\Controllers\ThreadsIntegrationController::class, 'handleOAuthCallback'])->name('callback');
+        Route::post('/token', [\App\Http\Controllers\ThreadsIntegrationController::class, 'saveManualToken'])->name('saveManualToken');
+        Route::post('/{id}/disconnect', [\App\Http\Controllers\ThreadsIntegrationController::class, 'disconnect'])->name('disconnect');
+        Route::post('/{id}/test-connection', [\App\Http\Controllers\ThreadsIntegrationController::class, 'testConnection'])->name('testConnection');
+    });
+
     // Administrator Only Routes: User Management
     Route::middleware('admin')->group(function () {
         Route::resource('users', UserController::class);

@@ -150,7 +150,7 @@ class ProjectController extends Controller
                 'existing_media_ids.*' => 'integer|exists:media_files,id',
                 'targets' => 'required|array|min:1',
                 'targets.*.account_id' => 'required|exists:connected_accounts,id',
-                'targets.*.platform_target' => 'required|in:both,instagram_only,facebook_only',
+                'targets.*.platform_target' => 'required|in:all,both,threads_only,instagram_only,facebook_only,ig_threads,fb_threads',
             ]);
 
             $existingMediaIds = array_map('intval', $request->input('existing_media_ids', []));
@@ -321,7 +321,7 @@ class ProjectController extends Controller
                 'media_files.*' => 'file|mimes:jpg,jpeg,png,mp4,mov|max:50000',
                 'targets' => 'required|array|min:1',
                 'targets.*.account_id' => 'required|exists:connected_accounts,id',
-                'targets.*.platform_target' => 'required|in:both,instagram_only,facebook_only',
+                'targets.*.platform_target' => 'required|in:all,both,threads_only,instagram_only,facebook_only,ig_threads,fb_threads',
             ]);
 
             // Validasi Aturan 1x Post

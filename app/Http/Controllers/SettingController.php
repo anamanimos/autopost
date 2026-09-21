@@ -68,6 +68,7 @@ class SettingController extends Controller
         $accounts = ConnectedAccount::orderBy('page_name')->get();
         $logs = TokenActivityLog::latest()->take(20)->get();
         $callbackUrl = route('meta.callback');
+        $threadsCallbackUrl = route('threads.callback');
 
         return view('settings.index', compact(
             'totalFiles',
@@ -84,7 +85,8 @@ class SettingController extends Controller
             'credential',
             'accounts',
             'logs',
-            'callbackUrl'
+            'callbackUrl',
+            'threadsCallbackUrl'
         ));
     }
 

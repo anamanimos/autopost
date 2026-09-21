@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\PublishLog;
 use App\Models\Schedule;
 use App\Services\MetaGraphService;
+use App\Services\ThreadsService;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -24,8 +25,9 @@ class PublishScheduleJob implements ShouldQueue
         $this->schedule = $schedule;
     }
 
-    public function handle(MetaGraphService $metaService): void
+    public function handle(MetaGraphService $metaService, ?ThreadsService $threadsService = null): void
     {
+        $threadsService = $threadsService ?? app(ThreadsService::class);
         $schedule = $this->schedule->fresh(['projectCampaign.targets.connectedAccount', 'mediaFile']);
         if (!$schedule || $schedule->status === 'completed') {
             return;
@@ -111,6 +113,20 @@ class PublishScheduleJob implements ShouldQueue
                         'project_campaign_id' => $project->id,
                         'connected_account_id' => $account->id,
                         'platform' => 'facebook',
+                        'content_type' => $contentType,
+                        'action_status' => 'skipped',
+                        'error_message' => 'Akun dinonaktifkan / tidak ditemukan di Meta (Soft-Deactivation)',
+                        'executed_at' => Carbon::now(),
+                    ]);
+                    $skippedActions++;
+                }
+
+                if ($target->targetsThreads()) {
+                    PublishLog::create([
+                        'schedule_id' => $schedule->id,
+                        'project_campaign_id' => $project->id,
+                        'connected_account_id' => $account->id,
+                        'platform' => 'threads',
                         'content_type' => $contentType,
                         'action_status' => 'skipped',
                         'error_message' => 'Akun dinonaktifkan / tidak ditemukan di Meta (Soft-Deactivation)',
@@ -266,7 +282,7 @@ class PublishScheduleJob implements ShouldQueue
                     $failedActions++;
                 }
             } else {
-                // Di-skip secara sengaja karena platform_target adalah instagram_only
+                // Di-skip secara sengaja karena platform_target tidak mencakup Facebook
                 PublishLog::create([
                     'schedule_id' => $schedule->id,
                     'project_campaign_id' => $project->id,
@@ -274,10 +290,89 @@ class PublishScheduleJob implements ShouldQueue
                     'platform' => 'facebook',
                     'content_type' => $contentType,
                     'action_status' => 'skipped',
-                    'error_message' => 'Dikecualikan berdasarkan pengaturan target (instagram_only)',
+                    'error_message' => 'Dikecualikan berdasarkan pengaturan target (' . $target->platform_target . ')',
                     'executed_at' => Carbon::now(),
                 ]);
                 $skippedActions++;
+            }
+
+            // 3. Eksekusi THREADS (jika target mencakup Threads)
+            if ($target->targetsThreads()) {
+                $totalActions++;
+
+                if (!$account->hasThreads()) {
+                    PublishLog::create([
+                        'schedule_id' => $schedule->id,
+                        'project_campaign_id' => $project->id,
+                        'connected_account_id' => $account->id,
+                        'platform' => 'threads',
+                        'content_type' => $contentType,
+                        'action_status' => 'failed',
+                        'error_message' => 'Akun ini belum terhubung ke Meta Threads API.',
+                        'executed_at' => Carbon::now(),
+                    ]);
+                    $failedActions++;
+                } else {
+                    // Cek limit kuota 250 post / 24 jam rolling
+                    $limitInfo = $threadsService->getPublishingLimit($account->threads_user_id, $account->threads_access_token);
+                    if ($limitInfo['success'] && ($limitInfo['quota_usage'] ?? 0) >= ($limitInfo['config']['quota_total'] ?? 250)) {
+                        PublishLog::create([
+                            'schedule_id' => $schedule->id,
+                            'project_campaign_id' => $project->id,
+                            'connected_account_id' => $account->id,
+                            'platform' => 'threads',
+                            'content_type' => $contentType,
+                            'action_status' => 'failed',
+                            'error_message' => 'Threads Content Publishing Limit tercapai (250 post / 24 jam rolling).',
+                            'executed_at' => Carbon::now(),
+                        ]);
+                        $failedActions++;
+                    } else {
+                        $threadsRes = $threadsService->publishThreadsPost(
+                            $account->threads_user_id,
+                            $account->threads_access_token,
+                            $mediaUrls,
+                            $caption,
+                            $isVideo
+                        );
+
+                        if ($threadsRes['success']) {
+                            PublishLog::create([
+                                'schedule_id' => $schedule->id,
+                                'project_campaign_id' => $project->id,
+                                'connected_account_id' => $account->id,
+                                'platform' => 'threads',
+                                'content_type' => $contentType,
+                                'action_status' => 'success',
+                                'media_id' => $threadsRes['id'] ?? null,
+                                'container_id' => $threadsRes['container_id'] ?? null,
+                                'response_payload' => $threadsRes['data'] ?? [],
+                                'executed_at' => Carbon::now(),
+                            ]);
+                            $successActions++;
+
+                            // Update quota lokal
+                            $account->increment('threads_publishing_quota_usage');
+                        } else {
+                            $err = $threadsRes['error'] ?? [];
+                            PublishLog::create([
+                                'schedule_id' => $schedule->id,
+                                'project_campaign_id' => $project->id,
+                                'connected_account_id' => $account->id,
+                                'platform' => 'threads',
+                                'content_type' => $contentType,
+                                'action_status' => 'failed',
+                                'container_id' => $threadsRes['container_id'] ?? null,
+                                'error_message' => $err['message'] ?? 'Gagal mempublish ke Meta Threads',
+                                'error_code' => $err['code'] ?? null,
+                                'error_subcode' => $err['error_subcode'] ?? null,
+                                'response_payload' => $err,
+                                'executed_at' => Carbon::now(),
+                            ]);
+                            $failedActions++;
+                        }
+                    }
+                }
             }
         }
 

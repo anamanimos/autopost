@@ -5,16 +5,18 @@ namespace App\Console\Commands;
 use App\Jobs\PublishScheduleJob;
 use App\Models\Schedule;
 use App\Services\MetaGraphService;
+use App\Services\ThreadsService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 
 class MetaPublishCommand extends Command
 {
     protected $signature = 'meta:publish {--id= : Publish specific schedule ID} {--project= : Filter by Project Campaign ID} {--force : Force execute even if time not reached}';
-    protected $description = 'Pemicu eksekusi publish jadwal antrean ke Instagram & Facebook via Meta Graph API';
+    protected $description = 'Pemicu eksekusi publish jadwal antrean ke Instagram, Facebook, dan Threads via Meta Graph API';
 
-    public function handle(MetaGraphService $metaService): int
+    public function handle(MetaGraphService $metaService, ?ThreadsService $threadsService = null): int
     {
+        $threadsService = $threadsService ?? app(ThreadsService::class);
         $specificId = $this->option('id');
         $projectId = $this->option('project');
         $force = $this->option('force');
@@ -27,7 +29,7 @@ class MetaPublishCommand extends Command
             }
 
             $this->info("Menjalankan jadwal #{$schedule->id} ({$schedule->item_code})...");
-            (new PublishScheduleJob($schedule))->handle($metaService);
+            (new PublishScheduleJob($schedule))->handle($metaService, $threadsService);
             $this->info("Jadwal #{$schedule->id} selesai dieksekusi.");
             return Command::SUCCESS;
         }
@@ -62,7 +64,7 @@ class MetaPublishCommand extends Command
 
         foreach ($schedules as $schedule) {
             $this->info("Mengeksekusi jadwal #{$schedule->id} [{$schedule->target_date} {$schedule->target_time}]...");
-            (new PublishScheduleJob($schedule))->handle($metaService);
+            (new PublishScheduleJob($schedule))->handle($metaService, $threadsService);
         }
 
         $this->info('Seluruh jadwal berhasil diproses.');

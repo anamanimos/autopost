@@ -51,11 +51,11 @@ class MetaCredential extends Model
 
     public function getThreadsAppId(): ?string
     {
-        return $this->threads_app_id ?: $this->app_id ?: env('THREADS_APP_ID', env('META_APP_ID'));
+        return $this->threads_app_id ?: env('THREADS_APP_ID');
     }
 
     public function getThreadsAppSecret(): ?string
     {
-        return $this->threads_app_secret ?: $this->app_secret ?: env('THREADS_APP_SECRET', env('META_APP_SECRET'));
+        return $this->threads_app_secret ?: env('THREADS_APP_SECRET');
     }
 }

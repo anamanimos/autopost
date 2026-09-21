@@ -20,7 +20,8 @@ class ThreadsIntegrationController extends Controller
         $appId = $credential->getThreadsAppId();
 
         if (empty($appId)) {
-            return redirect()->route('settings.index', ['tab' => 'meta'])->with('error', 'Silakan isi Meta / Threads App ID terlebih dahulu pada Pengaturan Kredensial.');
+            return redirect()->route('settings.index', ['tab' => 'meta'])
+                ->with('error', 'Threads App ID belum diatur. Masukkan Threads App ID dari Meta for Developers (Use Cases > Threads API Access > Settings) pada Pengaturan Kredensial, atau gunakan tombol Token Manual.');
         }
 
         if ($request->has('account_id')) {

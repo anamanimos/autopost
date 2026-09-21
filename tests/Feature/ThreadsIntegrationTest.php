@@ -272,4 +272,20 @@ class ThreadsIntegrationTest extends TestCase
         $this->assertEquals('success', $threadsLog->action_status);
         $this->assertEquals('pub_direct_th', $threadsLog->media_id);
     }
+
+    public function test_threads_oauth_redirect_blocks_and_warns_when_threads_app_id_not_set(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        // Kosongkan threads_app_id
+        MetaCredential::first()->update([
+            'threads_app_id' => null,
+            'app_id' => 'general_fb_app_id', // app_id umum tidak boleh dipakai untuk Threads
+        ]);
+
+        $res = $this->get(route('threads.oauth'));
+        $res->assertRedirect(route('settings.index', ['tab' => 'meta']));
+        $res->assertSessionHas('error');
+        $this->assertStringContainsString('Threads App ID belum diatur', session('error'));
+    }
 }

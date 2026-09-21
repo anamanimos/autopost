@@ -175,11 +175,23 @@
         html:not(.dark) a.text-white,
         html:not(.dark) span.font-bold.text-white,
         html:not(.dark) strong.text-white,
-        html:not(.dark) .text-white:not([class*="bg-indigo"]):not([class*="bg-blue"]):not([class*="bg-gradient"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-amber"]):not([class*="bg-purple"]) {
+        html:not(.dark) .text-white:not([class*="bg-indigo"]):not([class*="bg-blue"]):not([class*="bg-gradient"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-amber"]):not([class*="bg-purple"]):not([class*="bg-slate-900"]):not([class*="bg-slate-800"]):not([class*="bg-black"]) {
             color: #0f172a !important;
         }
 
         /* Force crisp white text on colored solid action buttons & badges */
+        html:not(.dark) button.bg-slate-900,
+        html:not(.dark) button.bg-slate-900 *,
+        html:not(.dark) a.bg-slate-900,
+        html:not(.dark) a.bg-slate-900 *,
+        html:not(.dark) button.bg-slate-800,
+        html:not(.dark) button.bg-slate-800 *,
+        html:not(.dark) a.bg-slate-800,
+        html:not(.dark) a.bg-slate-800 *,
+        html:not(.dark) button.bg-black,
+        html:not(.dark) button.bg-black *,
+        html:not(.dark) a.bg-black,
+        html:not(.dark) a.bg-black *,
         html:not(.dark) button.bg-indigo-600,
         html:not(.dark) button.bg-indigo-600 *,
         html:not(.dark) a.bg-indigo-600,

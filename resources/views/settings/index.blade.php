@@ -585,29 +585,32 @@
                             </div>
                         </div>
 
-                        <!-- Kredensial Khusus Threads (Opsional jika menggunakan App yang sama) -->
-                        <div class="p-3 bg-slate-100/70 dark:bg-gray-900/60 rounded-lg border border-slate-200 dark:border-gray-800 space-y-3">
-                            <div class="flex items-center justify-between">
+                        <!-- Kredensial Khusus Threads (Untuk Fitur 1-Klik Login Threads) -->
+                        <div class="p-3.5 bg-slate-100/80 dark:bg-gray-900/70 rounded-lg border border-slate-200 dark:border-gray-800 space-y-3">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                                 <span class="text-[11px] font-bold text-slate-800 dark:text-gray-200 flex items-center space-x-1.5">
                                     <i class="fa-brands fa-threads text-sm"></i>
-                                    <span>Kredensial Aplikasi Threads (Opsional)</span>
+                                    <span>Kredensial Threads API (Wajib untuk 1-Klik Login)</span>
                                 </span>
-                                <span class="text-[9px] text-slate-400 dark:text-gray-500">Kosongkan jika memakai Meta App di atas</span>
+                                <span class="text-[9px] text-amber-600 dark:text-amber-400 font-medium">Berbeda dari Meta App ID</span>
                             </div>
+                            <p class="text-[10px] text-slate-500 dark:text-gray-400 leading-relaxed">
+                                Dapatkan dari <strong>Meta for Developers</strong> &gt; Masuk ke App &gt; <strong>Use Cases</strong> &gt; <strong>Threads API Access</strong> &gt; <strong>Settings</strong>. Salin Threads App ID dan Secret dari halaman tersebut.
+                            </p>
 
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label class="block font-semibold text-slate-600 dark:text-gray-400 uppercase tracking-wider text-[9px] mb-1">
                                         Threads App ID
                                     </label>
-                                    <input type="text" name="threads_app_id" value="{{ $credential->threads_app_id }}" placeholder="Opsional / default Meta App ID"
+                                    <input type="text" name="threads_app_id" id="inputThreadsAppId" value="{{ $credential->threads_app_id }}" placeholder="Contoh: 890123456789012"
                                            class="w-full bg-white dark:bg-gray-950 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono">
                                 </div>
                                 <div>
                                     <label class="block font-semibold text-slate-600 dark:text-gray-400 uppercase tracking-wider text-[9px] mb-1">
                                         Threads App Secret
                                     </label>
-                                    <input type="password" name="threads_app_secret" placeholder="{{ $credential->threads_app_secret ? '•••••••••••••••• (Tersimpan)' : 'Opsional / default Meta Secret' }}"
+                                    <input type="password" name="threads_app_secret" placeholder="{{ $credential->threads_app_secret ? '•••••••••••••••• (Tersimpan)' : 'Masukkan Threads Secret' }}"
                                            class="w-full bg-white dark:bg-gray-950 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono">
                                 </div>
                             </div>
@@ -873,17 +876,21 @@
                                             </div>
                                         </div>
                                     @else
+                                        @php
+                                            $hasThreadsAppId = !empty($credential->getThreadsAppId());
+                                        @endphp
                                         <div class="pt-1 flex items-center justify-between gap-2">
-                                            <a href="{{ route('threads.oauth', ['account_id' => $acc->id]) }}" 
-                                               class="flex-1 py-1.5 px-2 bg-slate-900 hover:bg-black text-white dark:bg-slate-800 dark:hover:bg-slate-700 text-[10px] font-semibold rounded-lg text-center transition flex items-center justify-center space-x-1 shadow-sm min-h-[36px]">
-                                                <i class="fa-brands fa-threads"></i>
-                                                <span>Hubungkan Threads</span>
-                                            </a>
+                                            <button type="button" 
+                                                    onclick="connectThreadsClick({{ $acc->id }}, '{{ addslashes($acc->page_name) }}', {{ $hasThreadsAppId ? 'true' : 'false' }})"
+                                                    class="flex-1 py-2 px-3 bg-slate-900 hover:bg-black text-white dark:bg-slate-800 dark:hover:bg-slate-700 font-semibold rounded-lg text-xs transition flex items-center justify-center space-x-2 shadow-sm min-h-[44px]">
+                                                <i class="fa-brands fa-threads text-sm text-white"></i>
+                                                <span class="text-white font-semibold">Hubungkan Threads</span>
+                                            </button>
                                             <button type="button" 
                                                     onclick="openManualThreadsTokenModal({{ $acc->id }}, '{{ addslashes($acc->page_name) }}')" 
-                                                    class="py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 text-[10px] font-semibold rounded-lg transition min-h-[36px]" 
+                                                    class="py-2 px-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 dark:border-gray-700 rounded-lg text-xs font-semibold transition min-h-[44px] flex items-center justify-center" 
                                                     title="Input Token Threads Manual">
-                                                <i class="fa-solid fa-key"></i>
+                                                <i class="fa-solid fa-key text-xs text-amber-500"></i>
                                             </button>
                                         </div>
                                     @endif
@@ -1317,6 +1324,51 @@
         navigator.clipboard.writeText(input.value);
         document.getElementById('copyThreadsBtnText').textContent = 'Tersalin!';
         setTimeout(() => document.getElementById('copyThreadsBtnText').textContent = 'Salin', 2000);
+    }
+
+    function connectThreadsClick(accountId, pageName, hasAppId) {
+        if (hasAppId) {
+            window.location.href = "{{ route('threads.oauth') }}?account_id=" + accountId;
+        } else {
+            Swal.fire({
+                title: 'Threads App ID Belum Diatur',
+                html: `<div class="text-left text-xs space-y-2.5 text-slate-600 dark:text-gray-300">
+                    <p>Fitur <strong>1-Klik Login Threads</strong> membutuhkan <strong>Threads App ID</strong> tersendiri dari portal Meta for Developers (<em>Use Cases &gt; Threads API Access &gt; Settings</em>).</p>
+                    <div class="p-3 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200 space-y-1">
+                        <p class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-bolt text-amber-500"></i> Opsi Instan Tanpa OAuth:</p>
+                        <p class="text-[11px] leading-relaxed">Anda dapat langsung menghubungkan akun dengan menempelkan <strong>Access Token Threads</strong> secara manual.</p>
+                    </div>
+                </div>`,
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fa-solid fa-key mr-1.5 text-amber-400"></i> Input Token Manual',
+                cancelButtonText: '<i class="fa-solid fa-sliders mr-1.5"></i> Atur Kredensial App',
+                confirmButtonColor: '#0f172a',
+                cancelButtonColor: '#6366f1',
+                customClass: {
+                    popup: 'swal2-popup-dark',
+                    title: 'swal2-title-dark',
+                    htmlContainer: 'swal2-html-dark'
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    openManualThreadsTokenModal(accountId, pageName);
+                } else if (result.dismiss === Swal.DismissReason.cancel) {
+                    // Berpindah ke Subtab 1 (Koneksi & Kredensial)
+                    const root = document.querySelector('[x-data]');
+                    if (root && root._x_dataStack && root._x_dataStack[0]) {
+                        root._x_dataStack[0].metaSubTab = 'connect';
+                    }
+                    setTimeout(() => {
+                        const input = document.getElementById('inputThreadsAppId');
+                        if (input) {
+                            input.focus();
+                            input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    }, 250);
+                }
+            });
+        }
     }
 
     function openManualThreadsTokenModal(accountId, pageName) {

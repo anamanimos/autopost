@@ -172,14 +172,18 @@
         html:not(.dark) .card-dark h2,
         html:not(.dark) .card-dark h3,
         html:not(.dark) .card-dark h4,
-        html:not(.dark) a.text-white,
-        html:not(.dark) span.font-bold.text-white,
-        html:not(.dark) strong.text-white,
-        html:not(.dark) .text-white:not([class*="bg-indigo"]):not([class*="bg-blue"]):not([class*="bg-gradient"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-amber"]):not([class*="bg-purple"]):not([class*="bg-slate-900"]):not([class*="bg-slate-800"]):not([class*="bg-black"]) {
+        html:not(.dark) a.text-white:not([class*="bg-"]):not([class*="btn-"]),
+        html:not(.dark) span.font-bold.text-white:not(button *):not(a *),
+        html:not(.dark) strong.text-white:not(button *):not(a *),
+        html:not(.dark) :not(button):not(a):not(button *):not(a *) > .text-white:not([class*="bg-indigo"]):not([class*="bg-blue"]):not([class*="bg-gradient"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-amber"]):not([class*="bg-purple"]):not([class*="bg-slate-900"]):not([class*="bg-slate-800"]):not([class*="bg-black"]):not(.btn-threads):not(.btn-threads *) {
             color: #0f172a !important;
         }
 
         /* Force crisp white text on colored solid action buttons & badges */
+        html:not(.dark) .btn-threads,
+        html:not(.dark) .btn-threads *,
+        html:not(.dark) button .text-white,
+        html:not(.dark) a .text-white,
         html:not(.dark) button.bg-slate-900,
         html:not(.dark) button.bg-slate-900 *,
         html:not(.dark) a.bg-slate-900,

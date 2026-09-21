@@ -882,9 +882,10 @@
                                         <div class="pt-1 flex items-center justify-between gap-2">
                                             <button type="button" 
                                                     onclick="connectThreadsClick({{ $acc->id }}, '{{ addslashes($acc->page_name) }}', {{ $hasThreadsAppId ? 'true' : 'false' }})"
-                                                    class="flex-1 py-2 px-3 bg-slate-900 hover:bg-black text-white dark:bg-slate-800 dark:hover:bg-slate-700 font-semibold rounded-lg text-xs transition flex items-center justify-center space-x-2 shadow-sm min-h-[44px]">
-                                                <i class="fa-brands fa-threads text-sm text-white"></i>
-                                                <span class="text-white font-semibold">Hubungkan Threads</span>
+                                                    class="btn-threads flex-1 py-2 px-3 bg-slate-900 hover:bg-black font-semibold rounded-lg text-xs transition flex items-center justify-center space-x-2 shadow-sm min-h-[44px]"
+                                                    style="color: #ffffff !important; background-color: #0f172a !important;">
+                                                <i class="fa-brands fa-threads text-sm" style="color: #ffffff !important;"></i>
+                                                <span class="font-semibold" style="color: #ffffff !important;">Hubungkan Threads</span>
                                             </button>
                                             <button type="button" 
                                                     onclick="openManualThreadsTokenModal({{ $acc->id }}, '{{ addslashes($acc->page_name) }}')" 

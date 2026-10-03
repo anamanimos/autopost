@@ -149,19 +149,10 @@
                     <label class="block text-xs font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
                         Moda Pengulangan <span class="text-rose-500">*</span>
                     </label>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
-                        <label class="cursor-pointer relative">
-                            <input type="radio" name="repeat_type" value="instant" {{ $selectedRepeatType === 'instant' ? 'checked' : '' }} class="peer hidden" onchange="toggleRepeatFields()">
-                            <div class="p-2 sm:p-2.5 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-emerald-600 peer-checked:ring-2 peer-checked:ring-emerald-500/20 peer-checked:bg-emerald-50/40 dark:peer-checked:bg-emerald-950/20 transition text-center min-h-[44px]">
-                                <div class="text-emerald-500 text-sm mb-0.5"><i class="fa-solid fa-paper-plane"></i></div>
-                                <div class="text-xs font-bold text-slate-900 dark:text-white">Post Langsung</div>
-                                <div class="text-[10px] text-slate-500 dark:text-gray-400 leading-tight">Tayang sekarang</div>
-                            </div>
-                        </label>
-
+                    <div class="grid grid-cols-3 gap-2 sm:gap-3">
                         <label class="cursor-pointer relative">
                             <input type="radio" name="repeat_type" value="continuous" {{ $selectedRepeatType === 'continuous' ? 'checked' : '' }} class="peer hidden" onchange="toggleRepeatFields()">
-                            <div class="p-2 sm:p-2.5 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition text-center min-h-[44px]">
+                            <div class="p-2.5 sm:p-3 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition text-center min-h-[44px]">
                                 <div class="text-indigo-600 dark:text-indigo-400 text-sm mb-0.5"><i class="fa-solid fa-arrows-rotate"></i></div>
                                 <div class="text-xs font-bold text-slate-900 dark:text-white">Kontinu</div>
                                 <div class="text-[10px] text-slate-500 dark:text-gray-400 leading-tight">Rolling harian</div>
@@ -170,7 +161,7 @@
 
                         <label class="cursor-pointer relative">
                             <input type="radio" name="repeat_type" value="once" {{ $selectedRepeatType === 'once' ? 'checked' : '' }} class="peer hidden" onchange="toggleRepeatFields()">
-                            <div class="p-2 sm:p-2.5 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition text-center min-h-[44px]">
+                            <div class="p-2.5 sm:p-3 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition text-center min-h-[44px]">
                                 <div class="text-amber-500 text-sm mb-0.5"><i class="fa-solid fa-bullseye"></i></div>
                                 <div class="text-xs font-bold text-slate-900 dark:text-white">1x Post</div>
                                 <div class="text-[10px] text-slate-500 dark:text-gray-400 leading-tight">Sekali tayang</div>
@@ -179,23 +170,12 @@
 
                         <label class="cursor-pointer relative">
                             <input type="radio" name="repeat_type" value="until_date" {{ $selectedRepeatType === 'until_date' ? 'checked' : '' }} class="peer hidden" onchange="toggleRepeatFields()">
-                            <div class="p-2 sm:p-2.5 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition text-center min-h-[44px]">
+                            <div class="p-2.5 sm:p-3 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 peer-checked:border-indigo-600 peer-checked:ring-2 peer-checked:ring-indigo-500/20 peer-checked:bg-indigo-50/40 dark:peer-checked:bg-indigo-950/20 transition text-center min-h-[44px]">
                                 <div class="text-purple-500 text-sm mb-0.5"><i class="fa-regular fa-calendar-check"></i></div>
                                 <div class="text-xs font-bold text-slate-900 dark:text-white">Hingga Tgl</div>
                                 <div class="text-[10px] text-slate-500 dark:text-gray-400 leading-tight">Rentang waktu</div>
                             </div>
                         </label>
-                    </div>
-                </div>
-
-                <!-- Instant Post Banner Notice -->
-                <div id="instantNoticeWrapper" class="hidden p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-xs flex items-center space-x-3 shadow-sm">
-                    <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                        <i class="fa-solid fa-bolt"></i>
-                    </div>
-                    <div>
-                        <strong class="block font-semibold">Moda Post Langsung Aktif</strong>
-                        <span>Konten akan langsung dipublikasikan sekarang juga ke akun sosial yang dipilih saat formulir disimpan. Tidak memerlukan konfigurasi tanggal atau jam tayang.</span>
                     </div>
                 </div>
 
@@ -410,20 +390,15 @@
                 <i class="fa-solid fa-circle-check text-indigo-500 text-sm shrink-0"></i>
                 <span>Pastikan seluruh konfigurasi campaign, target akun, dan media pool sudah lengkap sebelum menyimpan.</span>
             </div>
-            <div class="flex items-center space-x-3 w-full sm:w-auto justify-end flex-wrap gap-2 sm:gap-3">
+            <div class="flex items-center space-x-3 w-full sm:w-auto justify-end">
                 <a href="{{ route('projects.show', $project->id) }}" 
-                   class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 font-semibold rounded-lg text-xs transition text-center min-w-[80px] min-h-[44px] flex items-center justify-center">
+                   class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 font-semibold rounded-lg text-xs transition text-center min-w-[90px] min-h-[44px] flex items-center justify-center">
                     Batal
                 </a>
-                <button type="submit" name="submit_action" value="save" id="btnSaveOnly"
-                        class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white font-semibold rounded-lg text-xs transition flex items-center justify-center space-x-2 min-h-[44px]">
+                <button type="submit" 
+                        class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs transition shadow-md flex items-center justify-center space-x-2 min-w-[170px] min-h-[44px]">
                     <i class="fa-solid fa-floppy-disk"></i>
                     <span>Simpan Perubahan Campaign</span>
-                </button>
-                <button type="submit" name="submit_action" value="direct_publish" id="btnDirectPublish"
-                        class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs transition shadow-md flex items-center justify-center space-x-2 min-h-[44px]">
-                    <i class="fa-solid fa-paper-plane"></i>
-                    <span id="btnDirectPublishText">Simpan & Post Langsung</span>
                 </button>
             </div>
         </div>
@@ -649,59 +624,40 @@
         const checkedRepeat = document.querySelector('input[name="repeat_type"]:checked');
         if (!checkedRepeat) return;
         const repeatType = checkedRepeat.value;
-        const dateInputsContainer = document.getElementById('dateInputsContainer');
         const startWrapper = document.getElementById('startDateWrapper');
         const endWrapper = document.getElementById('endDateWrapper');
         const startLabel = document.getElementById('startDateLabel');
         const startHelp = document.getElementById('startDateHelp');
         const excludeDaysWrapper = document.getElementById('excludeDaysWrapper');
         const onceNotice = document.getElementById('onceTimeNotice');
-        const instantNotice = document.getElementById('instantNoticeWrapper');
         const timeInput = document.getElementById('inputTargetTime');
-        const startDateInput = document.getElementById('inputStartDate');
-        const btnDirectPublishText = document.getElementById('btnDirectPublishText');
 
-        if (repeatType === 'instant') {
-            if (dateInputsContainer) dateInputsContainer.classList.add('hidden');
-            if (excludeDaysWrapper) excludeDaysWrapper.classList.add('hidden');
-            if (instantNotice) instantNotice.classList.remove('hidden');
-            if (startDateInput) startDateInput.removeAttribute('required');
-            if (timeInput) timeInput.removeAttribute('required');
-            if (btnDirectPublishText) btnDirectPublishText.textContent = 'Post Langsung Sekarang';
-        } else {
-            if (dateInputsContainer) dateInputsContainer.classList.remove('hidden');
-            if (instantNotice) instantNotice.classList.add('hidden');
-            if (startDateInput) startDateInput.setAttribute('required', 'required');
-            if (timeInput) timeInput.setAttribute('required', 'required');
-            if (btnDirectPublishText) btnDirectPublishText.textContent = 'Simpan & Post Langsung';
+        if (repeatType === 'continuous') {
+            endWrapper.classList.add('hidden');
+            startLabel.innerHTML = 'Mulai Tanggal <span class="text-rose-500">*</span>';
+            startHelp.textContent = 'Jadwal dimulai dari tanggal ini ke depan.';
+            excludeDaysWrapper.classList.remove('hidden');
+            onceNotice.classList.add('hidden');
+        } else if (repeatType === 'once') {
+            endWrapper.classList.add('hidden');
+            startLabel.innerHTML = 'Tanggal Tayang <span class="text-rose-500">*</span>';
+            startHelp.textContent = 'Konten tayang 1 kali pada tanggal ini.';
+            excludeDaysWrapper.classList.add('hidden');
+            onceNotice.classList.remove('hidden');
 
-            if (repeatType === 'continuous') {
-                endWrapper.classList.add('hidden');
-                startLabel.innerHTML = 'Mulai Tanggal <span class="text-rose-500">*</span>';
-                startHelp.textContent = 'Jadwal dimulai dari tanggal ini ke depan.';
-                excludeDaysWrapper.classList.remove('hidden');
-                onceNotice.classList.add('hidden');
-            } else if (repeatType === 'once') {
-                endWrapper.classList.add('hidden');
-                startLabel.innerHTML = 'Tanggal Tayang <span class="text-rose-500">*</span>';
-                startHelp.textContent = 'Konten tayang 1 kali pada tanggal ini.';
-                excludeDaysWrapper.classList.add('hidden');
-                onceNotice.classList.remove('hidden');
-
-                if (!timeInput.value) {
-                    const now = new Date();
-                    now.setMinutes(now.getMinutes() + 35);
-                    const hours = String(now.getHours()).padStart(2, '0');
-                    const minutes = String(now.getMinutes()).padStart(2, '0');
-                    timeInput.value = `${hours}:${minutes}`;
-                }
-            } else if (repeatType === 'until_date') {
-                endWrapper.classList.remove('hidden');
-                startLabel.innerHTML = 'Mulai Tanggal <span class="text-rose-500">*</span>';
-                startHelp.textContent = 'Tanggal dimulainya jadwal posting.';
-                excludeDaysWrapper.classList.remove('hidden');
-                onceNotice.classList.add('hidden');
+            if (!timeInput.value) {
+                const now = new Date();
+                now.setMinutes(now.getMinutes() + 35);
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                timeInput.value = `${hours}:${minutes}`;
             }
+        } else if (repeatType === 'until_date') {
+            endWrapper.classList.remove('hidden');
+            startLabel.innerHTML = 'Mulai Tanggal <span class="text-rose-500">*</span>';
+            startHelp.textContent = 'Tanggal dimulainya jadwal posting.';
+            excludeDaysWrapper.classList.remove('hidden');
+            onceNotice.classList.add('hidden');
         }
     }
 

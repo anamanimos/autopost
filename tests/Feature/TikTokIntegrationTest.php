@@ -124,6 +124,50 @@ class TikTokIntegrationTest extends TestCase
         $this->assertEquals('rft.tiktok_refresh_token_mock', $account->tiktok_refresh_token);
     }
 
+    public function test_tiktok_oauth_callback_with_root_level_token_response(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        $account = ConnectedAccount::create([
+            'page_id' => 'fb_acc_root_level',
+            'page_name' => 'Arema Style',
+            'is_active' => true,
+        ]);
+
+        session(['tiktok_target_account_id' => $account->id]);
+
+        // Mock TikTok returning tokens at ROOT level of JSON (RFC 6749 standard)
+        Http::fake([
+            'https://open.tiktokapis.com/v2/oauth/token/' => Http::response([
+                'access_token' => 'act.root_level_token_arema',
+                'refresh_token' => 'rft.root_level_refresh_arema',
+                'open_id' => 'open_id_arema_999',
+                'expires_in' => 86400,
+                'refresh_expires_in' => 31536000,
+                'token_type' => 'Bearer',
+            ], 200),
+            'https://open.tiktokapis.com/v2/user/info/*' => Http::response([
+                'data' => [
+                    'user' => [
+                        'open_id' => 'open_id_arema_999',
+                        'display_name' => 'Arema Style Official',
+                        'username' => 'arema_style',
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $res = $this->get(route('tiktok.callback', ['code' => 'mock_root_code']));
+        $res->assertRedirect(route('settings.index', ['tab' => 'tiktok']));
+        $res->assertSessionHas('success');
+
+        $account->refresh();
+        $this->assertTrue($account->hasTikTok());
+        $this->assertEquals('open_id_arema_999', $account->tiktok_open_id);
+        $this->assertEquals('arema_style', $account->tiktok_username);
+        $this->assertEquals('act.root_level_token_arema', $account->tiktok_access_token);
+    }
+
     public function test_tiktok_manual_connect_and_disconnect(): void
     {
         $this->actingAs($this->adminUser);

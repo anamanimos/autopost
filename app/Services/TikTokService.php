@@ -64,18 +64,20 @@ class TikTokService
             ]);
 
             $json = $response->json();
+            $tokenData = !empty($json['data']['access_token']) 
+                ? $json['data'] 
+                : (!empty($json['access_token']) ? $json : null);
 
-            if ($response->successful() && !empty($json['data']['access_token'])) {
-                $data = $json['data'];
+            if ($response->successful() && !empty($tokenData['access_token'])) {
                 return [
                     'success' => true,
-                    'access_token' => $data['access_token'],
-                    'refresh_token' => $data['refresh_token'] ?? null,
-                    'open_id' => $data['open_id'] ?? '',
-                    'expires_in' => $data['expires_in'] ?? 86400,
-                    'refresh_expires_in' => $data['refresh_expires_in'] ?? 31536000,
-                    'scope' => $data['scope'] ?? '',
-                    'data' => $data,
+                    'access_token' => $tokenData['access_token'],
+                    'refresh_token' => $tokenData['refresh_token'] ?? null,
+                    'open_id' => $tokenData['open_id'] ?? '',
+                    'expires_in' => $tokenData['expires_in'] ?? 86400,
+                    'refresh_expires_in' => $tokenData['refresh_expires_in'] ?? 31536000,
+                    'scope' => $tokenData['scope'] ?? '',
+                    'data' => $tokenData,
                 ];
             }
 
@@ -144,16 +146,19 @@ class TikTokService
 
             $json = $response->json();
 
-            if ($response->successful() && !empty($json['data']['access_token'])) {
-                $data = $json['data'];
+            $tokenData = !empty($json['data']['access_token']) 
+                ? $json['data'] 
+                : (!empty($json['access_token']) ? $json : null);
+
+            if ($response->successful() && !empty($tokenData['access_token'])) {
                 return [
                     'success' => true,
-                    'access_token' => $data['access_token'],
-                    'refresh_token' => $data['refresh_token'] ?? $refreshToken,
-                    'open_id' => $data['open_id'] ?? '',
-                    'expires_in' => $data['expires_in'] ?? 86400,
-                    'refresh_expires_in' => $data['refresh_expires_in'] ?? 31536000,
-                    'data' => $data,
+                    'access_token' => $tokenData['access_token'],
+                    'refresh_token' => $tokenData['refresh_token'] ?? $refreshToken,
+                    'open_id' => $tokenData['open_id'] ?? '',
+                    'expires_in' => $tokenData['expires_in'] ?? 86400,
+                    'refresh_expires_in' => $tokenData['refresh_expires_in'] ?? 31536000,
+                    'data' => $tokenData,
                 ];
             }
 
@@ -198,8 +203,8 @@ class TikTokService
 
             $json = $response->json();
 
-            if ($response->successful() && isset($json['data']['user'])) {
-                $user = $json['data']['user'];
+            $user = $json['data']['user'] ?? $json['user'] ?? null;
+            if ($response->successful() && !empty($user)) {
                 return [
                     'success' => true,
                     'open_id' => $user['open_id'] ?? '',

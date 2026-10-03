@@ -107,10 +107,15 @@ class ScheduleController extends Controller
             'publishLogs.connectedAccount',
         ])->findOrFail($id);
 
+        $logs = $schedule->publishLogs
+            ->sortByDesc('id')
+            ->unique(fn($l) => $l->connected_account_id . '_' . $l->platform)
+            ->values();
+
         return response()->json([
             'success' => true,
             'schedule' => $schedule,
-            'logs' => $schedule->publishLogs,
+            'logs' => $logs,
         ]);
     }
 
@@ -119,25 +124,33 @@ class ScheduleController extends Controller
         try {
             $schedule = Schedule::findOrFail($id);
 
+            // Tentukan apakah seluruh target harus dipaksa terbit ulang (misal user sengaja memilih publish ulang yang sudah completed)
+            $forceAll = $request->boolean('force_all', false) || ($request->boolean('force_republish', false) && $schedule->status === 'completed');
+
             // Jika dipaksa terbitkan ulang atau statusnya sudah completed, reset ke pending
-            if ($request->boolean('force_republish', false) || $schedule->status === 'completed') {
+            if ($forceAll || $schedule->status === 'completed') {
                 $schedule->update([
                     'status' => 'pending',
                     'notes' => 'Di-reset untuk dipublikasikan ulang pada ' . Carbon::now()->format('d/m/Y H:i'),
                 ]);
             }
 
-            (new PublishScheduleJob($schedule))->handle($metaService, $threadsService ?? app(\App\Services\ThreadsService::class));
+            (new PublishScheduleJob($schedule, $forceAll))->handle($metaService, $threadsService ?? app(\App\Services\ThreadsService::class));
 
             $schedule->refresh();
             $schedule->load('publishLogs.connectedAccount');
+
+            $deduplicatedLogs = $schedule->publishLogs
+                ->sortByDesc('id')
+                ->unique(fn($l) => $l->connected_account_id . '_' . $l->platform)
+                ->values();
 
             return response()->json([
                 'success' => true,
                 'message' => "Jadwal #{$schedule->id} selesai diproses dengan status " . strtoupper($schedule->status) . '.',
                 'status' => $schedule->status,
                 'notes' => $schedule->notes,
-                'logs' => $schedule->publishLogs,
+                'logs' => $deduplicatedLogs,
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -525,12 +538,17 @@ class ScheduleController extends Controller
             default => 'Penerbitan gagal diproses. Periksa catatan log detail.',
         };
 
+        $deduplicatedLogs = $schedule->publishLogs
+            ->sortByDesc('id')
+            ->unique(fn($l) => $l->connected_account_id . '_' . $l->platform)
+            ->values();
+
         return response()->json([
             'success' => $isSuccess,
             'status' => $schedule->status,
             'message' => $message,
             'schedule' => $schedule,
-            'logs' => $schedule->publishLogs,
+            'logs' => $deduplicatedLogs,
         ]);
     }
 

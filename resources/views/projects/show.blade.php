@@ -512,6 +512,11 @@
                                             <i class="fa-brands fa-instagram"></i>
                                             <span>Instagram</span>
                                         </span>
+                                    @elseif($log->platform === 'threads')
+                                        <span class="inline-flex items-center space-x-1 text-slate-800 dark:text-gray-200 font-sans font-semibold">
+                                            <i class="fa-brands fa-threads"></i>
+                                            <span>Threads</span>
+                                        </span>
                                     @else
                                         <span class="inline-flex items-center space-x-1 text-blue-600 dark:text-blue-400 font-sans font-semibold">
                                             <i class="fa-brands fa-facebook"></i>
@@ -574,6 +579,11 @@
                                     <span class="inline-flex items-center space-x-1 text-pink-500 dark:text-pink-400 text-xs font-semibold">
                                         <i class="fa-brands fa-instagram text-xs"></i>
                                         <span>IG</span>
+                                    </span>
+                                @elseif($log->platform === 'threads')
+                                    <span class="inline-flex items-center space-x-1 text-slate-800 dark:text-gray-200 text-xs font-semibold">
+                                        <i class="fa-brands fa-threads text-xs"></i>
+                                        <span>TH</span>
                                     </span>
                                 @else
                                     <span class="inline-flex items-center space-x-1 text-blue-600 dark:text-blue-400 text-xs font-semibold">

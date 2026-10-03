@@ -767,13 +767,14 @@
     </div>
 
     <!-- Live Interactive Publish Progress Modal (Bagian 2.1 & 11) -->
-    <div id="publishProgressModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm hidden px-4 transition-opacity duration-300">
-        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl max-w-xl w-full p-6 space-y-5 text-left relative overflow-hidden">
+    <!-- Live Loading Publish Progress Modal (Fixed Footer & Scrollable Body) -->
+    <div id="publishProgressModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm hidden p-4 sm:p-6 transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col text-left relative overflow-hidden">
             <!-- Glowing accent gradient line at top -->
-            <div id="progressAccentGlow" class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+            <div id="progressAccentGlow" class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 z-10"></div>
 
-            <!-- Modal Header -->
-            <div class="flex items-start justify-between">
+            <!-- Modal Header (Fixed at top) -->
+            <div class="p-5 sm:p-6 pb-4 flex items-start justify-between flex-shrink-0 border-b border-slate-100 dark:border-gray-800/80">
                 <div class="flex items-center space-x-3">
                     <div id="progressHeaderIcon" class="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-600/20 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
                         <i class="fa-solid fa-satellite-dish text-lg animate-pulse"></i>
@@ -783,114 +784,117 @@
                         <p id="progressModalSubtitle" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Menghubungkan ke Meta Graph API v22.0...</p>
                     </div>
                 </div>
-                <button id="progressModalCloseBtn" onclick="closePublishProgressModal()" class="text-slate-400 hover:text-slate-700 dark:text-gray-500 dark:hover:text-white transition text-sm p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-gray-800 hidden">
+                <button id="progressModalCloseBtn" onclick="closePublishProgressModal()" class="text-slate-400 hover:text-slate-700 dark:text-gray-500 dark:hover:text-white transition text-sm p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-gray-800 hidden" aria-label="Tutup Modal">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
 
-            <!-- Progress Bar & Percentage Indicator -->
-            <div class="space-y-1.5">
-                <div class="flex items-center justify-between text-xs">
-                    <span id="progressStatusLabel" class="font-medium text-slate-700 dark:text-gray-300">Menginisialisasi proses publikasi...</span>
-                    <span id="progressPercentage" class="font-bold text-indigo-600 dark:text-indigo-400 font-mono">0%</span>
+            <!-- Scrollable Modal Body -->
+            <div id="progressModalBody" class="p-5 sm:p-6 overflow-y-auto flex-1 space-y-4">
+                <!-- Progress Bar & Percentage Indicator -->
+                <div class="space-y-1.5">
+                    <div class="flex items-center justify-between text-xs">
+                        <span id="progressStatusLabel" class="font-medium text-slate-700 dark:text-gray-300">Menginisialisasi proses publikasi...</span>
+                        <span id="progressPercentage" class="font-bold text-indigo-600 dark:text-indigo-400 font-mono">0%</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-slate-100 dark:bg-gray-950 rounded-full overflow-hidden p-0.5 border border-slate-200 dark:border-gray-800">
+                        <div id="progressBarFill" class="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-500 ease-out" style="width: 5%;"></div>
+                    </div>
                 </div>
-                <div class="w-full h-2.5 bg-slate-100 dark:bg-gray-950 rounded-full overflow-hidden p-0.5 border border-slate-200 dark:border-gray-800">
-                    <div id="progressBarFill" class="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-500 ease-out" style="width: 5%;"></div>
+
+                <!-- Step-by-Step Tracker Checklist -->
+                <div class="space-y-2 text-xs" id="progressStepList">
+                    <!-- Step 1: Otentikasi & Verifikasi Target -->
+                    <div id="step-1" class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-gray-950/60 border border-slate-200 dark:border-gray-800 transition">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="step-icon w-6 h-6 rounded-md bg-slate-200 dark:bg-gray-800 flex items-center justify-center text-slate-600 dark:text-gray-400 text-xs">
+                                <i class="fa-solid fa-key"></i>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-slate-800 dark:text-gray-200">1. Otentikasi & Verifikasi Target</div>
+                                <div class="text-[10px] text-slate-500 dark:text-gray-400 step-desc">Memeriksa Page Access Token & IG User ID</div>
+                            </div>
+                        </div>
+                        <span class="step-badge text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-400 border border-slate-200 dark:border-gray-700">Menunggu</span>
+                    </div>
+
+                    <!-- Step 2: Pembuatan Media Container -->
+                    <div id="step-2" class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-gray-950/60 border border-slate-200 dark:border-gray-800 transition">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="step-icon w-6 h-6 rounded-md bg-slate-200 dark:bg-gray-800 flex items-center justify-center text-slate-600 dark:text-gray-400 text-xs">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-slate-800 dark:text-gray-200">2. Buat Media Container di Meta</div>
+                                <div class="text-[10px] text-slate-500 dark:text-gray-400 step-desc">Mengirim URL media publik ke endpoint Instagram API</div>
+                            </div>
+                        </div>
+                        <span class="step-badge text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-400 border border-slate-200 dark:border-gray-700">Menunggu</span>
+                    </div>
+
+                    <!-- Step 3: Validasi Kesiapan Media (Polling) -->
+                    <div id="step-3" class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-gray-950/60 border border-slate-200 dark:border-gray-800 transition">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="step-icon w-6 h-6 rounded-md bg-slate-200 dark:bg-gray-800 flex items-center justify-center text-slate-600 dark:text-gray-400 text-xs">
+                                <i class="fa-solid fa-hourglass-half"></i>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-slate-800 dark:text-gray-200">3. Validasi Kesiapan Media di Meta</div>
+                                <div class="text-[10px] text-slate-500 dark:text-gray-400 step-desc">Memastikan status media FINISHED di server Meta</div>
+                            </div>
+                        </div>
+                        <span class="step-badge text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-400 border border-slate-200 dark:border-gray-700">Menunggu</span>
+                    </div>
+
+                    <!-- Step 4: Publikasi ke Instagram & Facebook -->
+                    <div id="step-4" class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-gray-950/60 border border-slate-200 dark:border-gray-800 transition">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="step-icon w-6 h-6 rounded-md bg-slate-200 dark:bg-gray-800 flex items-center justify-center text-slate-600 dark:text-gray-400 text-xs">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-slate-800 dark:text-gray-200">4. Publikasikan Konten ke Platform</div>
+                                <div class="text-[10px] text-slate-500 dark:text-gray-400 step-desc">Menayangkan ke Story/Feed Instagram, Facebook Page & Threads</div>
+                            </div>
+                        </div>
+                        <span class="step-badge text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-400 border border-slate-200 dark:border-gray-700">Menunggu</span>
+                    </div>
+
+                    <!-- Step 5: Catat Log & Finalisasi -->
+                    <div id="step-5" class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-gray-950/60 border border-slate-200 dark:border-gray-800 transition">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="step-icon w-6 h-6 rounded-md bg-slate-200 dark:bg-gray-800 flex items-center justify-center text-slate-600 dark:text-gray-400 text-xs">
+                                <i class="fa-solid fa-database"></i>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-slate-800 dark:text-gray-200">5. Catat Log & Finalisasi Database</div>
+                                <div class="text-[10px] text-slate-500 dark:text-gray-400 step-desc">Menyimpan respons Media ID & update status jadwal</div>
+                            </div>
+                        </div>
+                        <span class="step-badge text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-400 border border-slate-200 dark:border-gray-700">Menunggu</span>
+                    </div>
                 </div>
+
+                <!-- Live Terminal / Console Box -->
+                <div class="space-y-1.5">
+                    <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-gray-400">
+                        <span class="flex items-center space-x-1.5 font-medium">
+                            <i class="fa-solid fa-terminal text-[10px] text-indigo-500 dark:text-indigo-400"></i>
+                            <span>Live Execution Console</span>
+                        </span>
+                        <span class="text-[10px] text-slate-600 dark:text-gray-400 font-mono bg-slate-100 dark:bg-gray-800/80 px-2 py-0.5 rounded border border-slate-200 dark:border-gray-700" id="progressTimer">0.0s</span>
+                    </div>
+                    <div id="progressConsole" class="bg-slate-900 dark:bg-gray-950 p-3 rounded-lg border border-slate-800 font-mono text-[10px] leading-relaxed max-h-32 overflow-y-auto space-y-1 text-slate-200 select-text shadow-inner">
+                        <!-- Dynamic console log lines injected here -->
+                    </div>
+                </div>
+
+                <!-- Result Breakdown Card (Hidden during loading, shown on completion) -->
+                <div id="progressResultCard" class="hidden p-4 rounded-xl border text-xs space-y-2 shadow-lg"></div>
             </div>
 
-            <!-- Step-by-Step Tracker Checklist -->
-            <div class="space-y-2 text-xs" id="progressStepList">
-                <!-- Step 1: Otentikasi & Verifikasi Target -->
-                <div id="step-1" class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-gray-950/60 border border-slate-200 dark:border-gray-800 transition">
-                    <div class="flex items-center space-x-2.5">
-                        <div class="step-icon w-6 h-6 rounded-md bg-slate-200 dark:bg-gray-800 flex items-center justify-center text-slate-600 dark:text-gray-400 text-xs">
-                            <i class="fa-solid fa-key"></i>
-                        </div>
-                        <div>
-                            <div class="font-semibold text-slate-800 dark:text-gray-200">1. Otentikasi & Verifikasi Target</div>
-                            <div class="text-[10px] text-slate-500 dark:text-gray-400 step-desc">Memeriksa Page Access Token & IG User ID</div>
-                        </div>
-                    </div>
-                    <span class="step-badge text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-400 border border-slate-200 dark:border-gray-700">Menunggu</span>
-                </div>
-
-                <!-- Step 2: Pembuatan Media Container -->
-                <div id="step-2" class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-gray-950/60 border border-slate-200 dark:border-gray-800 transition">
-                    <div class="flex items-center space-x-2.5">
-                        <div class="step-icon w-6 h-6 rounded-md bg-slate-200 dark:bg-gray-800 flex items-center justify-center text-slate-600 dark:text-gray-400 text-xs">
-                            <i class="fa-solid fa-cloud-arrow-up"></i>
-                        </div>
-                        <div>
-                            <div class="font-semibold text-slate-800 dark:text-gray-200">2. Buat Media Container di Meta</div>
-                            <div class="text-[10px] text-slate-500 dark:text-gray-400 step-desc">Mengirim URL media publik ke endpoint Instagram API</div>
-                        </div>
-                    </div>
-                    <span class="step-badge text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-400 border border-slate-200 dark:border-gray-700">Menunggu</span>
-                </div>
-
-                <!-- Step 3: Validasi Kesiapan Media (Polling) -->
-                <div id="step-3" class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-gray-950/60 border border-slate-200 dark:border-gray-800 transition">
-                    <div class="flex items-center space-x-2.5">
-                        <div class="step-icon w-6 h-6 rounded-md bg-slate-200 dark:bg-gray-800 flex items-center justify-center text-slate-600 dark:text-gray-400 text-xs">
-                            <i class="fa-solid fa-hourglass-half"></i>
-                        </div>
-                        <div>
-                            <div class="font-semibold text-slate-800 dark:text-gray-200">3. Validasi Kesiapan Media di Meta</div>
-                            <div class="text-[10px] text-slate-500 dark:text-gray-400 step-desc">Memastikan status media FINISHED di server Meta</div>
-                        </div>
-                    </div>
-                    <span class="step-badge text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-400 border border-slate-200 dark:border-gray-700">Menunggu</span>
-                </div>
-
-                <!-- Step 4: Publikasi ke Instagram & Facebook -->
-                <div id="step-4" class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-gray-950/60 border border-slate-200 dark:border-gray-800 transition">
-                    <div class="flex items-center space-x-2.5">
-                        <div class="step-icon w-6 h-6 rounded-md bg-slate-200 dark:bg-gray-800 flex items-center justify-center text-slate-600 dark:text-gray-400 text-xs">
-                            <i class="fa-solid fa-paper-plane"></i>
-                        </div>
-                        <div>
-                            <div class="font-semibold text-slate-800 dark:text-gray-200">4. Publikasikan Konten ke Platform</div>
-                            <div class="text-[10px] text-slate-500 dark:text-gray-400 step-desc">Menayangkan ke Story/Feed Instagram & Facebook Page</div>
-                        </div>
-                    </div>
-                    <span class="step-badge text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-400 border border-slate-200 dark:border-gray-700">Menunggu</span>
-                </div>
-
-                <!-- Step 5: Catat Log & Finalisasi -->
-                <div id="step-5" class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-gray-950/60 border border-slate-200 dark:border-gray-800 transition">
-                    <div class="flex items-center space-x-2.5">
-                        <div class="step-icon w-6 h-6 rounded-md bg-slate-200 dark:bg-gray-800 flex items-center justify-center text-slate-600 dark:text-gray-400 text-xs">
-                            <i class="fa-solid fa-database"></i>
-                        </div>
-                        <div>
-                            <div class="font-semibold text-slate-800 dark:text-gray-200">5. Catat Log & Finalisasi Database</div>
-                            <div class="text-[10px] text-slate-500 dark:text-gray-400 step-desc">Menyimpan respons Media ID & update status jadwal</div>
-                        </div>
-                    </div>
-                    <span class="step-badge text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-400 border border-slate-200 dark:border-gray-700">Menunggu</span>
-                </div>
-            </div>
-
-            <!-- Live Terminal / Console Box -->
-            <div class="space-y-1.5">
-                <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-gray-400">
-                    <span class="flex items-center space-x-1.5 font-medium">
-                        <i class="fa-solid fa-terminal text-[10px] text-indigo-500 dark:text-indigo-400"></i>
-                        <span>Live Execution Console</span>
-                    </span>
-                    <span class="text-[10px] text-slate-600 dark:text-gray-400 font-mono bg-slate-100 dark:bg-gray-800/80 px-2 py-0.5 rounded border border-slate-200 dark:border-gray-700" id="progressTimer">0.0s</span>
-                </div>
-                <div id="progressConsole" class="bg-slate-900 dark:bg-gray-950 p-3 rounded-lg border border-slate-800 font-mono text-[10px] leading-relaxed max-h-32 overflow-y-auto space-y-1 text-slate-200 select-text shadow-inner">
-                    <!-- Dynamic console log lines injected here -->
-                </div>
-            </div>
-
-            <!-- Result Breakdown Card (Hidden during loading, shown on completion) -->
-            <div id="progressResultCard" class="hidden p-4 rounded-xl border text-xs space-y-2 shadow-lg"></div>
-
-            <!-- Action Footer -->
-            <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-200 dark:border-gray-800/80">
+            <!-- Action Footer (Fixed at bottom) -->
+            <div class="flex-shrink-0 p-4 sm:p-5 border-t border-slate-200 dark:border-gray-800/80 bg-slate-50/80 dark:bg-gray-950/60 flex items-center justify-end space-x-2.5">
                 <button id="progressCancelBtn" onclick="closePublishProgressModal()" class="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 transition hidden">
                     Tutup
                 </button>
@@ -1232,64 +1236,120 @@
                 const finalTime = document.getElementById('progressTimer').textContent;
 
                 if (ok && data.success) {
-                    // Mark all steps as complete
-                    for (let i = 1; i <= 5; i++) {
-                        updateProgressStep(i, 'completed', 'Selesai');
+                    const isPartial = data.status === 'partially_failed';
+                    const isAllFailed = data.status === 'failed';
+
+                    if (isAllFailed) {
+                        for (let i = 1; i <= 3; i++) {
+                            updateProgressStep(i, 'completed', 'OK');
+                        }
+                        updateProgressStep(4, 'failed', 'Gagal');
+                        updateProgressStep(5, 'completed', 'Tercatat');
+                        setProgressBar(100, 'Publikasi gagal diproses');
+                        document.getElementById('progressBarFill').className = 'h-full bg-rose-600 rounded-full transition-all duration-500 ease-out';
+                    } else if (isPartial) {
+                        for (let i = 1; i <= 3; i++) {
+                            updateProgressStep(i, 'completed', 'OK');
+                        }
+                        updateProgressStep(4, 'completed', 'Sebagian');
+                        updateProgressStep(5, 'completed', 'Tercatat');
+                        setProgressBar(100, 'Publikasi selesai sebagian (ada platform gagal)');
+                        document.getElementById('progressBarFill').className = 'h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-500 ease-out';
+                    } else {
+                        for (let i = 1; i <= 5; i++) {
+                            updateProgressStep(i, 'completed', 'Selesai');
+                        }
+                        setProgressBar(100, 'Publikasi selesai dengan sukses!');
+                        document.getElementById('progressBarFill').className = 'h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500 ease-out';
                     }
-                    setProgressBar(100, 'Publikasi selesai dengan sukses!');
-                    document.getElementById('progressBarFill').className = 'h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500 ease-out';
                     
-                    addConsoleLog(`Respons sukses diterima dari Meta Graph API dalam ${finalTime}.`, 'success');
-                    addConsoleLog(`Status jadwal sekarang: ${data.status.toUpperCase()}`, 'success');
+                    const logType = isAllFailed ? 'error' : (isPartial ? 'warning' : 'success');
+                    addConsoleLog(`Respons diterima dari server dalam ${finalTime}.`, logType);
+                    addConsoleLog(`Status jadwal: ${data.status ? data.status.toUpperCase() : 'SELESAI'}`, logType);
 
                     // Render Result Card
                     const resultCard = document.getElementById('progressResultCard');
-                    resultCard.className = 'p-4 rounded-2xl bg-emerald-950/40 border border-emerald-800 text-xs space-y-2.5 shadow-lg';
+                    if (isAllFailed) {
+                        resultCard.className = 'p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs space-y-2.5 shadow-lg';
+                    } else if (isPartial) {
+                        resultCard.className = 'p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs space-y-2.5 shadow-lg';
+                    } else {
+                        resultCard.className = 'p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs space-y-2.5 shadow-lg';
+                    }
 
                     let logsHtml = '';
                     if (data.logs && data.logs.length > 0) {
-                        logsHtml = `<div class="space-y-1.5 mt-2 border-t border-emerald-800/60 pt-2">
-                            <div class="text-[10px] font-semibold text-emerald-300 uppercase tracking-wider">Hasil Per Target Akun:</div>`;
+                        logsHtml = `<div class="space-y-1.5 mt-2 border-t border-slate-200 dark:border-gray-800/80 pt-2">
+                            <div class="text-[10px] font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider">Hasil Per Target Akun:</div>`;
                         data.logs.forEach(l => {
                             const accName = l.connected_account ? l.connected_account.page_name : 'Akun';
-                            const isIg = l.platform === 'instagram';
-                            const badge = l.action_status === 'success' ? 
-                                '<span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-900 text-emerald-300 font-bold uppercase">Sukses</span>' :
-                                (l.action_status === 'skipped' ? '<span class="px-1.5 py-0.5 rounded text-[9px] bg-gray-800 text-gray-400 font-bold uppercase">Skip</span>' : '<span class="px-1.5 py-0.5 rounded text-[9px] bg-rose-900 text-rose-300 font-bold uppercase">Gagal</span>');
+                            let iconClass = 'fa-solid fa-share-nodes text-slate-400';
+                            if (l.platform === 'instagram') iconClass = 'fa-brands fa-instagram text-pink-500';
+                            else if (l.platform === 'facebook') iconClass = 'fa-brands fa-facebook text-blue-500';
+                            else if (l.platform === 'threads') iconClass = 'fa-brands fa-threads text-slate-900 dark:text-white';
+
+                            let badge = '<span class="px-1.5 py-0.5 rounded text-[9px] bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 font-bold uppercase border border-rose-200 dark:border-rose-800">Gagal</span>';
+                            if (l.action_status === 'success') {
+                                badge = '<span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold uppercase border border-emerald-200 dark:border-emerald-800">Sukses</span>';
+                            } else if (l.action_status === 'skipped') {
+                                badge = '<span class="px-1.5 py-0.5 rounded text-[9px] bg-slate-100 text-slate-700 dark:bg-gray-800 dark:text-gray-400 font-bold uppercase border border-slate-200 dark:border-gray-700">Skip</span>';
+                            }
                             
-                            const detailId = l.media_id ? `<span class="font-mono text-[9px] text-gray-400">ID: ${l.media_id}</span>` : '';
-                            const errorMsg = l.error_message ? `<span class="text-[10px] text-rose-300 block">${l.error_message}</span>` : '';
+                            const detailId = l.media_id ? `<span class="font-mono text-[9px] text-slate-500 dark:text-gray-400">ID: ${l.media_id}</span>` : '';
+                            const errorMsg = l.error_message ? `<span class="text-[10px] text-rose-600 dark:text-rose-400 block mt-1">${l.error_message}</span>` : '';
 
                             logsHtml += `
-                                <div class="flex items-center justify-between text-[11px] bg-gray-900/60 p-2 rounded-xl border border-gray-800">
-                                    <div class="flex items-center space-x-2">
-                                        <i class="${isIg ? 'fa-brands fa-instagram text-pink-400' : 'fa-brands fa-facebook text-blue-400'}"></i>
-                                        <span class="font-semibold text-white">${accName}</span>
-                                        <span class="text-[10px] text-gray-400">(${l.platform})</span>
+                                <div class="bg-white/90 dark:bg-gray-900/60 p-2.5 rounded-lg border border-slate-200 dark:border-gray-800 space-y-1">
+                                    <div class="flex items-center justify-between text-[11px]">
+                                        <div class="flex items-center space-x-2">
+                                            <i class="${iconClass}"></i>
+                                            <span class="font-semibold text-slate-900 dark:text-white">${accName}</span>
+                                            <span class="text-[10px] text-slate-500 dark:text-gray-400">(${l.platform})</span>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            ${detailId}
+                                            ${badge}
+                                        </div>
                                     </div>
-                                    <div class="flex items-center space-x-2">
-                                        ${detailId}
-                                        ${badge}
-                                    </div>
+                                    ${errorMsg}
                                 </div>
-                                ${errorMsg}
                             `;
                         });
                         logsHtml += `</div>`;
                     }
 
+                    let headerIcon = '<i class="fa-solid fa-circle-check text-base"></i>';
+                    let headerColor = 'text-emerald-600 dark:text-emerald-400';
+                    let headerTitle = data.message || 'Konten berhasil dipublikasikan!';
+
+                    if (isAllFailed) {
+                        headerIcon = '<i class="fa-solid fa-circle-xmark text-base"></i>';
+                        headerColor = 'text-rose-600 dark:text-rose-400';
+                        headerTitle = 'Publikasi Gagal';
+                    } else if (isPartial) {
+                        headerIcon = '<i class="fa-solid fa-triangle-exclamation text-base"></i>';
+                        headerColor = 'text-amber-600 dark:text-amber-400';
+                        headerTitle = 'Publikasi Selesai Sebagian';
+                    }
+
                     resultCard.innerHTML = `
-                        <div class="flex items-center space-x-2 text-emerald-400 font-bold">
-                            <i class="fa-solid fa-circle-check text-base"></i>
-                            <span>${data.message || 'Konten berhasil dipublikasikan ke Meta!'}</span>
+                        <div class="flex items-center space-x-2 ${headerColor} font-bold">
+                            ${headerIcon}
+                            <span>${headerTitle}</span>
                         </div>
-                        <p class="text-gray-300 text-[11px] leading-relaxed">${data.notes || 'Seluruh aksi telah selesai dieksekusi dan log tercatat.'}</p>
+                        <p class="text-slate-600 dark:text-gray-300 text-[11px] leading-relaxed">${data.notes || 'Seluruh aksi telah dieksekusi.'}</p>
                         ${logsHtml}
                     `;
                     resultCard.classList.remove('hidden');
 
                     document.getElementById('progressModalCloseBtn').classList.remove('hidden');
+                    document.getElementById('progressCancelBtn').classList.remove('hidden');
                     document.getElementById('progressDoneReloadBtn').classList.remove('hidden');
+
+                    const modalBody = document.getElementById('progressModalBody');
+                    if (modalBody) {
+                        setTimeout(() => { modalBody.scrollTop = modalBody.scrollHeight; }, 60);
+                    }
                 } else {
                     handlePublishError(data.message || 'Gagal mempublikasikan jadwal');
                 }
@@ -1311,21 +1371,27 @@
             addConsoleLog(`Eksekusi gagal: ${errorMsg}`, 'error');
 
             const resultCard = document.getElementById('progressResultCard');
-            resultCard.className = 'p-4 rounded-2xl bg-rose-950/40 border border-rose-800 text-xs space-y-2 shadow-lg';
+            resultCard.className = 'p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs space-y-2 shadow-lg';
             resultCard.innerHTML = `
-                <div class="flex items-center space-x-2 text-rose-400 font-bold">
+                <div class="flex items-center space-x-2 text-rose-600 dark:text-rose-400 font-bold">
                     <i class="fa-solid fa-circle-exclamation text-base"></i>
                     <span>Publikasi Gagal Dieksekusi</span>
                 </div>
-                <p class="text-gray-300 text-[11px] leading-relaxed">${errorMsg}</p>
-                <div class="p-2.5 bg-gray-900/80 rounded-xl border border-gray-800 text-[10px] text-gray-400 font-mono">
-                    Silakan periksa izin Page Access Token & koneksi Instagram Business di menu Pengaturan (Integrasi Meta).
+                <p class="text-slate-600 dark:text-gray-300 text-[11px] leading-relaxed">${errorMsg}</p>
+                <div class="p-2.5 bg-slate-100 dark:bg-gray-900/80 rounded-lg border border-slate-200 dark:border-gray-800 text-[10px] text-slate-500 dark:text-gray-400 font-mono">
+                    Silakan periksa izin Access Token dan koneksi platform terkait di menu Pengaturan.
                 </div>
             `;
             resultCard.classList.remove('hidden');
 
             document.getElementById('progressModalCloseBtn').classList.remove('hidden');
             document.getElementById('progressCancelBtn').classList.remove('hidden');
+            document.getElementById('progressDoneReloadBtn').classList.remove('hidden');
+
+            const modalBody = document.getElementById('progressModalBody');
+            if (modalBody) {
+                setTimeout(() => { modalBody.scrollTop = modalBody.scrollHeight; }, 60);
+            }
         }
 
         /**
@@ -1443,7 +1509,13 @@
                     resultCard.classList.remove('hidden');
 
                     document.getElementById('progressModalCloseBtn').classList.remove('hidden');
+                    document.getElementById('progressCancelBtn').classList.remove('hidden');
                     document.getElementById('progressDoneReloadBtn').classList.remove('hidden');
+
+                    const modalBody = document.getElementById('progressModalBody');
+                    if (modalBody) {
+                        setTimeout(() => { modalBody.scrollTop = modalBody.scrollHeight; }, 60);
+                    }
                 } else {
                     handlePublishError(data.message || 'Gagal memproses antrean');
                 }
@@ -1460,6 +1532,19 @@
         function triggerPublishNow() {
             triggerPublishNowWithProgress();
         }
+
+        // Close progress modal on Escape key when process has completed or errored
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('publishProgressModal');
+                if (modal && !modal.classList.contains('hidden')) {
+                    const closeBtn = document.getElementById('progressModalCloseBtn');
+                    if (closeBtn && !closeBtn.classList.contains('hidden')) {
+                        closePublishProgressModal();
+                    }
+                }
+            }
+        });
     </script>
 
     @yield('scripts')

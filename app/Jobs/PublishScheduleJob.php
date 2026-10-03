@@ -19,10 +19,12 @@ class PublishScheduleJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public Schedule $schedule;
+    public bool $forceAll;
 
-    public function __construct(Schedule $schedule)
+    public function __construct(Schedule $schedule, bool $forceAll = false)
     {
         $this->schedule = $schedule;
+        $this->forceAll = $forceAll;
     }
 
     public function handle(MetaGraphService $metaService, ?ThreadsService $threadsService = null): void
@@ -99,11 +101,12 @@ class PublishScheduleJob implements ShouldQueue
             // Jika aset sudah dinonaktifkan (Soft-Deactivation)
             if (!$account->is_active) {
                 if ($target->targetsInstagram()) {
-                    PublishLog::create([
+                    PublishLog::firstOrCreate([
                         'schedule_id' => $schedule->id,
                         'project_campaign_id' => $project->id,
                         'connected_account_id' => $account->id,
                         'platform' => 'instagram',
+                    ], [
                         'content_type' => $contentType,
                         'action_status' => 'skipped',
                         'error_message' => 'Akun dinonaktifkan / tidak ditemukan di Meta (Soft-Deactivation)',
@@ -113,11 +116,12 @@ class PublishScheduleJob implements ShouldQueue
                 }
 
                 if ($target->targetsFacebook()) {
-                    PublishLog::create([
+                    PublishLog::firstOrCreate([
                         'schedule_id' => $schedule->id,
                         'project_campaign_id' => $project->id,
                         'connected_account_id' => $account->id,
                         'platform' => 'facebook',
+                    ], [
                         'content_type' => $contentType,
                         'action_status' => 'skipped',
                         'error_message' => 'Akun dinonaktifkan / tidak ditemukan di Meta (Soft-Deactivation)',
@@ -127,11 +131,12 @@ class PublishScheduleJob implements ShouldQueue
                 }
 
                 if ($target->targetsThreads()) {
-                    PublishLog::create([
+                    PublishLog::firstOrCreate([
                         'schedule_id' => $schedule->id,
                         'project_campaign_id' => $project->id,
                         'connected_account_id' => $account->id,
                         'platform' => 'threads',
+                    ], [
                         'content_type' => $contentType,
                         'action_status' => 'skipped',
                         'error_message' => 'Akun dinonaktifkan / tidak ditemukan di Meta (Soft-Deactivation)',
@@ -146,113 +151,164 @@ class PublishScheduleJob implements ShouldQueue
             if ($target->targetsInstagram()) {
                 $totalActions++;
 
-                if (!$hasMedia) {
-                    PublishLog::create([
-                        'schedule_id' => $schedule->id,
-                        'project_campaign_id' => $project->id,
-                        'connected_account_id' => $account->id,
-                        'platform' => 'instagram',
-                        'content_type' => $contentType,
-                        'action_status' => 'failed',
-                        'error_message' => 'Instagram mewajibkan file media (gambar atau video). Postingan teks saja tidak didukung oleh Instagram.',
-                        'executed_at' => Carbon::now(),
-                    ]);
-                    $failedActions++;
-                } elseif (empty($account->ig_user_id)) {
-                    PublishLog::create([
-                        'schedule_id' => $schedule->id,
-                        'project_campaign_id' => $project->id,
-                        'connected_account_id' => $account->id,
-                        'platform' => 'instagram',
-                        'content_type' => $contentType,
-                        'action_status' => 'failed',
-                        'error_message' => 'Halaman Facebook ini belum terhubung ke Instagram Business Account.',
-                        'executed_at' => Carbon::now(),
-                    ]);
-                    $failedActions++;
+                $existingIgSuccess = PublishLog::where('schedule_id', $schedule->id)
+                    ->where('connected_account_id', $account->id)
+                    ->where('platform', 'instagram')
+                    ->where('action_status', 'success')
+                    ->first();
+
+                if ($existingIgSuccess && !$this->forceAll) {
+                    $successActions++;
                 } else {
-                    // Cek limit kuota 100 post / 24h
-                    $limitInfo = $metaService->getContentPublishingLimit($account->ig_user_id, $account->page_access_token);
-                    if ($limitInfo['success'] && ($limitInfo['quota_usage'] ?? 0) >= ($limitInfo['config']['quota_total'] ?? 100)) {
-                        PublishLog::create([
+                    $existingIgFailed = PublishLog::where('schedule_id', $schedule->id)
+                        ->where('connected_account_id', $account->id)
+                        ->where('platform', 'instagram')
+                        ->where('action_status', '!=', 'success')
+                        ->latest('id')
+                        ->first();
+
+                    if (!$hasMedia) {
+                        $logPayload = [
                             'schedule_id' => $schedule->id,
                             'project_campaign_id' => $project->id,
                             'connected_account_id' => $account->id,
                             'platform' => 'instagram',
                             'content_type' => $contentType,
                             'action_status' => 'failed',
-                            'error_message' => 'Instagram Content Publishing Limit tercapai (100 post / 24 jam rolling).',
+                            'error_message' => 'Instagram mewajibkan file media (gambar atau video). Postingan teks saja tidak didukung oleh Instagram.',
                             'executed_at' => Carbon::now(),
-                        ]);
+                        ];
+                        if ($existingIgFailed) {
+                            $existingIgFailed->update($logPayload);
+                        } else {
+                            PublishLog::create($logPayload);
+                        }
+                        $failedActions++;
+                    } elseif (empty($account->ig_user_id)) {
+                        $logPayload = [
+                            'schedule_id' => $schedule->id,
+                            'project_campaign_id' => $project->id,
+                            'connected_account_id' => $account->id,
+                            'platform' => 'instagram',
+                            'content_type' => $contentType,
+                            'action_status' => 'failed',
+                            'error_message' => 'Halaman Facebook ini belum terhubung ke Instagram Business Account.',
+                            'executed_at' => Carbon::now(),
+                        ];
+                        if ($existingIgFailed) {
+                            $existingIgFailed->update($logPayload);
+                        } else {
+                            PublishLog::create($logPayload);
+                        }
                         $failedActions++;
                     } else {
-                        // Publikasi Instagram
-                        if ($contentType === 'story') {
-                            $igRes = $metaService->publishInstagramStory(
-                                $account->ig_user_id,
-                                $account->page_access_token,
-                                $primaryUrl,
-                                $isVideo
-                            );
-                        } else {
-                            $igRes = $metaService->publishInstagramFeedPost(
-                                $account->ig_user_id,
-                                $account->page_access_token,
-                                $mediaUrls,
-                                $caption,
-                                $isVideo
-                            );
-                        }
-
-                        if ($igRes['success']) {
-                            PublishLog::create([
-                                'schedule_id' => $schedule->id,
-                                'project_campaign_id' => $project->id,
-                                'connected_account_id' => $account->id,
-                                'platform' => 'instagram',
-                                'content_type' => $contentType,
-                                'action_status' => 'success',
-                                'media_id' => $igRes['id'] ?? null,
-                                'container_id' => $igRes['container_id'] ?? null,
-                                'response_payload' => $igRes['data'] ?? [],
-                                'executed_at' => Carbon::now(),
-                            ]);
-                            $successActions++;
-
-                            // Update local quota usage counter
-                            $account->increment('ig_publishing_quota_usage');
-                        } else {
-                            $err = $igRes['error'] ?? [];
-                            PublishLog::create([
+                        // Cek limit kuota 100 post / 24h
+                        $limitInfo = $metaService->getContentPublishingLimit($account->ig_user_id, $account->page_access_token);
+                        if ($limitInfo['success'] && ($limitInfo['quota_usage'] ?? 0) >= ($limitInfo['config']['quota_total'] ?? 100)) {
+                            $logPayload = [
                                 'schedule_id' => $schedule->id,
                                 'project_campaign_id' => $project->id,
                                 'connected_account_id' => $account->id,
                                 'platform' => 'instagram',
                                 'content_type' => $contentType,
                                 'action_status' => 'failed',
-                                'container_id' => $igRes['container_id'] ?? null,
-                                'error_message' => $err['message'] ?? 'Gagal mempublish ke Instagram',
-                                'error_code' => $err['code'] ?? null,
-                                'error_subcode' => $err['error_subcode'] ?? null,
-                                'response_payload' => $err,
+                                'error_message' => 'Instagram Content Publishing Limit tercapai (100 post / 24 jam rolling).',
                                 'executed_at' => Carbon::now(),
-                            ]);
+                            ];
+                            if ($existingIgFailed) {
+                                $existingIgFailed->update($logPayload);
+                            } else {
+                                PublishLog::create($logPayload);
+                            }
                             $failedActions++;
+                        } else {
+                            // Publikasi Instagram
+                            if ($contentType === 'story') {
+                                $igRes = $metaService->publishInstagramStory(
+                                    $account->ig_user_id,
+                                    $account->page_access_token,
+                                    $primaryUrl,
+                                    $isVideo
+                                );
+                            } else {
+                                $igRes = $metaService->publishInstagramFeedPost(
+                                    $account->ig_user_id,
+                                    $account->page_access_token,
+                                    $mediaUrls,
+                                    $caption,
+                                    $isVideo
+                                );
+                            }
+
+                            if ($igRes['success']) {
+                                $logPayload = [
+                                    'schedule_id' => $schedule->id,
+                                    'project_campaign_id' => $project->id,
+                                    'connected_account_id' => $account->id,
+                                    'platform' => 'instagram',
+                                    'content_type' => $contentType,
+                                    'action_status' => 'success',
+                                    'media_id' => $igRes['id'] ?? null,
+                                    'container_id' => $igRes['container_id'] ?? null,
+                                    'response_payload' => $igRes['data'] ?? [],
+                                    'error_message' => null,
+                                    'error_code' => null,
+                                    'error_subcode' => null,
+                                    'executed_at' => Carbon::now(),
+                                ];
+                                if ($existingIgFailed) {
+                                    $existingIgFailed->update($logPayload);
+                                } else {
+                                    PublishLog::create($logPayload);
+                                }
+                                $successActions++;
+
+                                $account->increment('ig_publishing_quota_usage');
+                            } else {
+                                $err = $igRes['error'] ?? [];
+                                $logPayload = [
+                                    'schedule_id' => $schedule->id,
+                                    'project_campaign_id' => $project->id,
+                                    'connected_account_id' => $account->id,
+                                    'platform' => 'instagram',
+                                    'content_type' => $contentType,
+                                    'action_status' => 'failed',
+                                    'container_id' => $igRes['container_id'] ?? null,
+                                    'error_message' => $err['message'] ?? 'Gagal mempublish ke Instagram',
+                                    'error_code' => $err['code'] ?? null,
+                                    'error_subcode' => $err['error_subcode'] ?? null,
+                                    'response_payload' => $err,
+                                    'executed_at' => Carbon::now(),
+                                ];
+                                if ($existingIgFailed) {
+                                    $existingIgFailed->update($logPayload);
+                                } else {
+                                    PublishLog::create($logPayload);
+                                }
+                                $failedActions++;
+                            }
                         }
                     }
                 }
             } else {
-                // Di-skip secara sengaja karena platform_target adalah facebook_only
-                PublishLog::create([
-                    'schedule_id' => $schedule->id,
-                    'project_campaign_id' => $project->id,
-                    'connected_account_id' => $account->id,
-                    'platform' => 'instagram',
-                    'content_type' => $contentType,
-                    'action_status' => 'skipped',
-                    'error_message' => 'Dikecualikan berdasarkan pengaturan target (facebook_only)',
-                    'executed_at' => Carbon::now(),
-                ]);
+                $existingIgSkipped = PublishLog::where('schedule_id', $schedule->id)
+                    ->where('connected_account_id', $account->id)
+                    ->where('platform', 'instagram')
+                    ->where('action_status', 'skipped')
+                    ->first();
+
+                if (!$existingIgSkipped) {
+                    PublishLog::create([
+                        'schedule_id' => $schedule->id,
+                        'project_campaign_id' => $project->id,
+                        'connected_account_id' => $account->id,
+                        'platform' => 'instagram',
+                        'content_type' => $contentType,
+                        'action_status' => 'skipped',
+                        'error_message' => 'Dikecualikan berdasarkan pengaturan target (' . $target->platform_target . ')',
+                        'executed_at' => Carbon::now(),
+                    ]);
+                }
                 $skippedActions++;
             }
 
@@ -260,56 +316,92 @@ class PublishScheduleJob implements ShouldQueue
             if ($target->targetsFacebook()) {
                 $totalActions++;
 
-                $fbRes = $metaService->publishFacebookPage(
-                    $account->page_id,
-                    $account->page_access_token,
-                    $mediaUrls,
-                    $caption,
-                    $contentType
-                );
+                $existingFbSuccess = PublishLog::where('schedule_id', $schedule->id)
+                    ->where('connected_account_id', $account->id)
+                    ->where('platform', 'facebook')
+                    ->where('action_status', 'success')
+                    ->first();
 
-                if ($fbRes['success']) {
-                    PublishLog::create([
-                        'schedule_id' => $schedule->id,
-                        'project_campaign_id' => $project->id,
-                        'connected_account_id' => $account->id,
-                        'platform' => 'facebook',
-                        'content_type' => $contentType,
-                        'action_status' => 'success',
-                        'media_id' => $fbRes['id'] ?? null,
-                        'response_payload' => $fbRes['data'] ?? [],
-                        'executed_at' => Carbon::now(),
-                    ]);
+                $existingFbFailed = PublishLog::where('schedule_id', $schedule->id)
+                    ->where('connected_account_id', $account->id)
+                    ->where('platform', 'facebook')
+                    ->where('action_status', 'failed')
+                    ->first();
+
+                if ($existingFbSuccess && !$this->forceAll) {
                     $successActions++;
                 } else {
-                    $err = $fbRes['error'] ?? [];
+                    $fbRes = $metaService->publishFacebookPage(
+                        $account->page_id,
+                        $account->page_access_token,
+                        $mediaUrls,
+                        $caption,
+                        $contentType
+                    );
+
+                    if ($fbRes['success']) {
+                        $logPayload = [
+                            'schedule_id' => $schedule->id,
+                            'project_campaign_id' => $project->id,
+                            'connected_account_id' => $account->id,
+                            'platform' => 'facebook',
+                            'content_type' => $contentType,
+                            'action_status' => 'success',
+                            'media_id' => $fbRes['id'] ?? null,
+                            'response_payload' => $fbRes['data'] ?? [],
+                            'error_message' => null,
+                            'error_code' => null,
+                            'error_subcode' => null,
+                            'executed_at' => Carbon::now(),
+                        ];
+                        if ($existingFbFailed) {
+                            $existingFbFailed->update($logPayload);
+                        } else {
+                            PublishLog::create($logPayload);
+                        }
+                        $successActions++;
+                    } else {
+                        $err = $fbRes['error'] ?? [];
+                        $logPayload = [
+                            'schedule_id' => $schedule->id,
+                            'project_campaign_id' => $project->id,
+                            'connected_account_id' => $account->id,
+                            'platform' => 'facebook',
+                            'content_type' => $contentType,
+                            'action_status' => 'failed',
+                            'error_message' => $err['message'] ?? 'Gagal mempublish ke Facebook Page',
+                            'error_code' => $err['code'] ?? null,
+                            'error_subcode' => $err['error_subcode'] ?? null,
+                            'response_payload' => $err,
+                            'executed_at' => Carbon::now(),
+                        ];
+                        if ($existingFbFailed) {
+                            $existingFbFailed->update($logPayload);
+                        } else {
+                            PublishLog::create($logPayload);
+                        }
+                        $failedActions++;
+                    }
+                }
+            } else {
+                $existingFbSkipped = PublishLog::where('schedule_id', $schedule->id)
+                    ->where('connected_account_id', $account->id)
+                    ->where('platform', 'facebook')
+                    ->where('action_status', 'skipped')
+                    ->first();
+
+                if (!$existingFbSkipped) {
                     PublishLog::create([
                         'schedule_id' => $schedule->id,
                         'project_campaign_id' => $project->id,
                         'connected_account_id' => $account->id,
                         'platform' => 'facebook',
                         'content_type' => $contentType,
-                        'action_status' => 'failed',
-                        'error_message' => $err['message'] ?? 'Gagal mempublish ke Facebook Page',
-                        'error_code' => $err['code'] ?? null,
-                        'error_subcode' => $err['error_subcode'] ?? null,
-                        'response_payload' => $err,
+                        'action_status' => 'skipped',
+                        'error_message' => 'Dikecualikan berdasarkan pengaturan target (' . $target->platform_target . ')',
                         'executed_at' => Carbon::now(),
                     ]);
-                    $failedActions++;
                 }
-            } else {
-                // Di-skip secara sengaja karena platform_target tidak mencakup Facebook
-                PublishLog::create([
-                    'schedule_id' => $schedule->id,
-                    'project_campaign_id' => $project->id,
-                    'connected_account_id' => $account->id,
-                    'platform' => 'facebook',
-                    'content_type' => $contentType,
-                    'action_status' => 'skipped',
-                    'error_message' => 'Dikecualikan berdasarkan pengaturan target (' . $target->platform_target . ')',
-                    'executed_at' => Carbon::now(),
-                ]);
                 $skippedActions++;
             }
 
@@ -317,76 +409,115 @@ class PublishScheduleJob implements ShouldQueue
             if ($target->targetsThreads()) {
                 $totalActions++;
 
-                if (!$account->hasThreads()) {
-                    PublishLog::create([
-                        'schedule_id' => $schedule->id,
-                        'project_campaign_id' => $project->id,
-                        'connected_account_id' => $account->id,
-                        'platform' => 'threads',
-                        'content_type' => $contentType,
-                        'action_status' => 'failed',
-                        'error_message' => 'Akun ini belum terhubung ke Meta Threads API.',
-                        'executed_at' => Carbon::now(),
-                    ]);
-                    $failedActions++;
+                $existingThreadsSuccess = PublishLog::where('schedule_id', $schedule->id)
+                    ->where('connected_account_id', $account->id)
+                    ->where('platform', 'threads')
+                    ->where('action_status', 'success')
+                    ->first();
+
+                $existingThreadsFailed = PublishLog::where('schedule_id', $schedule->id)
+                    ->where('connected_account_id', $account->id)
+                    ->where('platform', 'threads')
+                    ->where('action_status', 'failed')
+                    ->first();
+
+                if ($existingThreadsSuccess && !$this->forceAll) {
+                    $successActions++;
                 } else {
-                    // Cek limit kuota 250 post / 24 jam rolling
-                    $limitInfo = $threadsService->getPublishingLimit($account->threads_user_id, $account->threads_access_token);
-                    if ($limitInfo['success'] && ($limitInfo['quota_usage'] ?? 0) >= ($limitInfo['config']['quota_total'] ?? 250)) {
-                        PublishLog::create([
+                    if (!$account->hasThreads()) {
+                        $logPayload = [
                             'schedule_id' => $schedule->id,
                             'project_campaign_id' => $project->id,
                             'connected_account_id' => $account->id,
                             'platform' => 'threads',
                             'content_type' => $contentType,
                             'action_status' => 'failed',
-                            'error_message' => 'Threads Content Publishing Limit tercapai (250 post / 24 jam rolling).',
+                            'error_message' => 'Akun ini belum terhubung ke Meta Threads API.',
                             'executed_at' => Carbon::now(),
-                        ]);
+                        ];
+                        if ($existingThreadsFailed) {
+                            $existingThreadsFailed->update($logPayload);
+                        } else {
+                            PublishLog::create($logPayload);
+                        }
                         $failedActions++;
                     } else {
-                        $threadsRes = $threadsService->publishThreadsPost(
-                            $account->threads_user_id,
-                            $account->threads_access_token,
-                            $mediaUrls,
-                            $caption,
-                            $isVideo
-                        );
-
-                        if ($threadsRes['success']) {
-                            PublishLog::create([
-                                'schedule_id' => $schedule->id,
-                                'project_campaign_id' => $project->id,
-                                'connected_account_id' => $account->id,
-                                'platform' => 'threads',
-                                'content_type' => $contentType,
-                                'action_status' => 'success',
-                                'media_id' => $threadsRes['id'] ?? null,
-                                'container_id' => $threadsRes['container_id'] ?? null,
-                                'response_payload' => $threadsRes['data'] ?? [],
-                                'executed_at' => Carbon::now(),
-                            ]);
-                            $successActions++;
-
-                            // Update quota lokal
-                            $account->increment('threads_publishing_quota_usage');
-                        } else {
-                            $err = $threadsRes['error'] ?? [];
-                            PublishLog::create([
+                        // Cek limit kuota 250 post / 24 jam rolling
+                        $limitInfo = $threadsService->getPublishingLimit($account->threads_user_id, $account->threads_access_token);
+                        if ($limitInfo['success'] && ($limitInfo['quota_usage'] ?? 0) >= ($limitInfo['config']['quota_total'] ?? 250)) {
+                            $logPayload = [
                                 'schedule_id' => $schedule->id,
                                 'project_campaign_id' => $project->id,
                                 'connected_account_id' => $account->id,
                                 'platform' => 'threads',
                                 'content_type' => $contentType,
                                 'action_status' => 'failed',
-                                'container_id' => $threadsRes['container_id'] ?? null,
-                                'error_message' => $err['message'] ?? 'Gagal mempublish ke Meta Threads',
-                                'error_code' => $err['code'] ?? null,
-                                'error_subcode' => $err['error_subcode'] ?? null,
-                                'response_payload' => $err,
+                                'error_message' => 'Threads Content Publishing Limit tercapai (250 post / 24 jam rolling).',
                                 'executed_at' => Carbon::now(),
-                            ]);
+                            ];
+                            if ($existingThreadsFailed) {
+                                $existingThreadsFailed->update($logPayload);
+                            } else {
+                                PublishLog::create($logPayload);
+                            }
                             $failedActions++;
+                        } else {
+                            $threadsRes = $threadsService->publishThreadsPost(
+                                $account->threads_user_id,
+                                $account->threads_access_token,
+                                $mediaUrls,
+                                $caption,
+                                $isVideo
+                            );
+
+                            if ($threadsRes['success']) {
+                                $logPayload = [
+                                    'schedule_id' => $schedule->id,
+                                    'project_campaign_id' => $project->id,
+                                    'connected_account_id' => $account->id,
+                                    'platform' => 'threads',
+                                    'content_type' => $contentType,
+                                    'action_status' => 'success',
+                                    'media_id' => $threadsRes['id'] ?? null,
+                                    'container_id' => $threadsRes['container_id'] ?? null,
+                                    'response_payload' => $threadsRes['data'] ?? [],
+                                    'error_message' => null,
+                                    'error_code' => null,
+                                    'error_subcode' => null,
+                                    'executed_at' => Carbon::now(),
+                                ];
+                                if ($existingThreadsFailed) {
+                                    $existingThreadsFailed->update($logPayload);
+                                } else {
+                                    PublishLog::create($logPayload);
+                                }
+                                $successActions++;
+
+                                // Update quota lokal
+                                $account->increment('threads_publishing_quota_usage');
+                            } else {
+                                $err = $threadsRes['error'] ?? [];
+                                $logPayload = [
+                                    'schedule_id' => $schedule->id,
+                                    'project_campaign_id' => $project->id,
+                                    'connected_account_id' => $account->id,
+                                    'platform' => 'threads',
+                                    'content_type' => $contentType,
+                                    'action_status' => 'failed',
+                                    'container_id' => $threadsRes['container_id'] ?? null,
+                                    'error_message' => $err['message'] ?? 'Gagal mempublish ke Meta Threads',
+                                    'error_code' => $err['code'] ?? null,
+                                    'error_subcode' => $err['error_subcode'] ?? null,
+                                    'response_payload' => $err,
+                                    'executed_at' => Carbon::now(),
+                                ];
+                                if ($existingThreadsFailed) {
+                                    $existingThreadsFailed->update($logPayload);
+                                } else {
+                                    PublishLog::create($logPayload);
+                                }
+                                $failedActions++;
+                            }
                         }
                     }
                 }

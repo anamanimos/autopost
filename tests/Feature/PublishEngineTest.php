@@ -206,4 +206,108 @@ class PublishEngineTest extends TestCase
         $schedule->refresh();
         $this->assertEquals('completed', $schedule->status);
     }
+
+    public function test_retry_partially_failed_schedule_only_republishes_failed_platforms(): void
+    {
+        $acc = ConnectedAccount::create([
+            'page_id' => 'fb_page_multi',
+            'page_name' => 'Multi Platform Account',
+            'ig_user_id' => 'ig_user_multi',
+            'ig_username' => 'multi_user',
+            'page_access_token' => 'multi_token',
+            'is_active' => true,
+        ]);
+
+        $project = ProjectCampaign::create([
+            'name' => 'Multi Retry Test Campaign',
+            'content_type' => 'post',
+            'target_time' => '12:00',
+            'repeat_type' => 'once',
+            'status' => 'active',
+        ]);
+
+        CampaignTarget::create([
+            'project_campaign_id' => $project->id,
+            'connected_account_id' => $acc->id,
+            'platform_target' => 'both',
+        ]);
+
+        $schedule = Schedule::create([
+            'project_campaign_id' => $project->id,
+            'item_code' => 'retry_partial_test',
+            'media_path' => '/storage/uploads/test.jpg',
+            'media_paths' => ['/storage/uploads/test.jpg'],
+            'target_date' => Carbon::today(),
+            'target_time' => '12:00',
+            'status' => 'partially_failed',
+        ]);
+
+        // Simulasikan kondisi sebelumnya: Facebook sukses, Instagram gagal
+        \App\Models\PublishLog::create([
+            'schedule_id' => $schedule->id,
+            'project_campaign_id' => $project->id,
+            'connected_account_id' => $acc->id,
+            'platform' => 'facebook',
+            'content_type' => 'post',
+            'action_status' => 'success',
+            'media_id' => 'fb_already_done_777',
+            'executed_at' => Carbon::now()->subMinutes(10),
+        ]);
+
+        \App\Models\PublishLog::create([
+            'schedule_id' => $schedule->id,
+            'project_campaign_id' => $project->id,
+            'connected_account_id' => $acc->id,
+            'platform' => 'instagram',
+            'content_type' => 'post',
+            'action_status' => 'failed',
+            'error_message' => 'IG network timeout sebelumnya',
+            'executed_at' => Carbon::now()->subMinutes(10),
+        ]);
+
+        $mockService = Mockery::mock(MetaGraphService::class);
+
+        // Facebook SUDAH sukses sebelumnya, jadi TIDAK BOLEH dipanggil ulang!
+        $mockService->shouldNotReceive('publishFacebookPage');
+
+        // Instagram yang gagal sebelumnya HARUS dipanggil untuk dicoba lagi
+        $mockService->shouldReceive('getContentPublishingLimit')
+            ->with('ig_user_multi', 'multi_token')
+            ->once()
+            ->andReturn(['success' => true, 'quota_usage' => 1, 'config' => ['quota_total' => 100]]);
+
+        $mockService->shouldReceive('publishInstagramFeedPost')
+            ->with('ig_user_multi', 'multi_token', Mockery::any(), Mockery::any(), false)
+            ->once()
+            ->andReturn(['success' => true, 'id' => 'ig_retry_success_888', 'container_id' => 'cnt_888']);
+
+        $this->app->instance(MetaGraphService::class, $mockService);
+
+        // Eksekusi retry runSingle
+        $response = $this->postJson(route('schedules.runSingle', $schedule->id));
+
+        $response->assertOk();
+        $response->assertJson([
+            'success' => true,
+            'status' => 'completed',
+        ]);
+
+        $schedule->refresh();
+        $this->assertEquals('completed', $schedule->status);
+
+        // Verifikasi publish_logs: jumlah tetap 2 (tidak ada duplikasi baris)
+        $logs = $schedule->publishLogs;
+        $this->assertCount(2, $logs);
+
+        // Cek log Facebook tetap sukses dengan ID lama
+        $fbLog = $logs->where('platform', 'facebook')->first();
+        $this->assertEquals('success', $fbLog->action_status);
+        $this->assertEquals('fb_already_done_777', $fbLog->media_id);
+
+        // Cek log Instagram sudah diperbarui menjadi sukses dengan ID baru
+        $igLog = $logs->where('platform', 'instagram')->first();
+        $this->assertEquals('success', $igLog->action_status);
+        $this->assertEquals('ig_retry_success_888', $igLog->media_id);
+        $this->assertNull($igLog->error_message);
+    }
 }

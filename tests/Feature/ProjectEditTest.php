@@ -124,4 +124,45 @@ class ProjectEditTest extends TestCase
         $this->assertEquals(1, $this->project->mediaFiles()->count());
         $this->assertEquals($this->media->id, $this->project->mediaFiles()->first()->id);
     }
+
+    public function test_update_project_with_direct_publish_executes_immediately(): void
+    {
+        $mockMeta = \Mockery::mock(\App\Services\MetaGraphService::class);
+        $mockMeta->shouldReceive('publishFacebookPage')
+            ->once()
+            ->andReturn([
+                'success' => true,
+                'media_id' => 'direct_fb_post_999',
+            ]);
+        $this->app->instance(\App\Services\MetaGraphService::class, $mockMeta);
+
+        $response = $this->actingAs($this->admin)->postJson(route('projects.update', $this->project->id), [
+            '_method' => 'PUT',
+            'name' => 'Campaign Edit Direct Post',
+            'content_type' => 'post',
+            'caption' => 'Direct post from edit page',
+            'repeat_type' => 'instant',
+            'submit_action' => 'direct_publish',
+            'targets' => [
+                [
+                    'account_id' => $this->account->id,
+                    'platform_target' => 'facebook_only',
+                ]
+            ],
+            'existing_media_ids' => [$this->media->id],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true, 'direct_published' => true]);
+
+        $this->project->refresh();
+        $this->assertEquals('Campaign Edit Direct Post', $this->project->name);
+
+        $latestSchedule = \App\Models\Schedule::where('project_campaign_id', $this->project->id)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($latestSchedule);
+        $this->assertEquals('completed', $latestSchedule->status);
+    }
 }

@@ -13,6 +13,7 @@ use App\Services\MetaGraphService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ProjectController extends Controller
 {
@@ -335,30 +336,34 @@ class ProjectController extends Controller
         }
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, $id, MetaGraphService $metaService)
     {
         try {
             $project = ProjectCampaign::findOrFail($id);
+
+            $isDirectPublish = ($request->input('submit_action') === 'direct_publish' || $request->input('repeat_type') === 'instant');
 
             $request->validate([
                 'name' => 'required|string|max:255',
                 'content_type' => 'required|in:story,post',
                 'caption' => 'nullable|string',
-                'target_time' => 'required|string',
+                'target_time' => ($isDirectPublish && $request->input('repeat_type') === 'instant') ? 'nullable|string' : 'required|string',
                 'images_per_post' => 'nullable|integer|min:1|max:10',
-                'repeat_type' => 'required|in:continuous,once,until_date',
+                'repeat_type' => 'required|in:continuous,once,until_date,instant',
                 'start_date' => 'nullable|date',
                 'end_date' => 'nullable|date|after_or_equal:start_date',
                 'exclude_days' => 'nullable|array',
                 'media_files' => 'nullable|array',
                 'media_files.*' => 'file|mimes:jpg,jpeg,png,mp4,mov|max:50000',
+                'existing_media_ids' => 'nullable|array',
+                'existing_media_ids.*' => 'integer|exists:media_files,id',
                 'targets' => 'required|array|min:1',
                 'targets.*.account_id' => 'required|exists:connected_accounts,id',
                 'targets.*.platform_target' => 'required|in:all,both,threads_only,instagram_only,facebook_only,ig_threads,fb_threads,tiktok_only',
             ]);
 
-            // Validasi Aturan 1x Post
-            if ($request->repeat_type === 'once') {
+            // Validasi Aturan 1x Post: Minimal 30 menit dari jam sekarang (hanya berlaku jika bukan direct publish)
+            if ($request->repeat_type === 'once' && !$isDirectPublish) {
                 $targetDateStr = $request->start_date ? Carbon::parse($request->start_date)->format('Y-m-d') : Carbon::today()->format('Y-m-d');
                 $targetDateTimeStr = $targetDateStr . ' ' . trim($request->target_time);
                 $scheduledAt = Carbon::parse($targetDateTimeStr);
@@ -374,17 +379,22 @@ class ProjectController extends Controller
                 }
             }
 
+            $now = Carbon::now();
+            $targetTime = $request->target_time ? trim($request->target_time) : $now->format('H:i');
+            $repeatType = $request->repeat_type;
+            $isInstant = ($repeatType === 'instant');
+
             $project->update([
                 'name' => trim($request->name),
                 'content_type' => $request->content_type,
                 'caption' => $request->caption ? trim($request->caption) : null,
-                'target_time' => trim($request->target_time),
+                'target_time' => $targetTime,
                 'images_per_post' => (int) ($request->images_per_post ?? 1),
-                'repeat_type' => $request->repeat_type,
-                'start_date' => $request->start_date ? Carbon::parse($request->start_date) : $project->start_date,
-                'end_date' => $request->end_date ? Carbon::parse($request->end_date) : null,
-                'exclude_days' => array_map('intval', $request->input('exclude_days', [])),
-                'is_continuous' => ($request->repeat_type === 'continuous'),
+                'repeat_type' => $isInstant ? 'once' : $repeatType,
+                'start_date' => $isInstant ? $now->toDateString() : ($request->start_date ? Carbon::parse($request->start_date) : $project->start_date),
+                'end_date' => $isInstant ? null : ($request->end_date ? Carbon::parse($request->end_date) : null),
+                'exclude_days' => $isInstant ? [] : array_map('intval', $request->input('exclude_days', [])),
+                'is_continuous' => ($repeatType === 'continuous'),
             ]);
 
             // Sync Targets (Hapus yang lama, pasang yang baru)
@@ -448,6 +458,63 @@ class ProjectController extends Controller
                 }
 
                 $project->mediaFiles()->sync(array_unique($allMediaIds));
+            }
+
+            if ($isDirectPublish) {
+                $now = Carbon::now();
+                $itemCode = 'INST-' . strtoupper(Str::random(6));
+
+                $primaryMedia = $project->mediaFiles()->first();
+                $mediaPaths = $project->mediaFiles->pluck('file_path')->toArray();
+
+                $schedule = Schedule::create([
+                    'project_campaign_id' => $project->id,
+                    'item_code' => $itemCode,
+                    'media_file_id' => $primaryMedia?->id,
+                    'media_path' => $primaryMedia?->file_path ?? '',
+                    'media_paths' => $mediaPaths,
+                    'target_date' => $now->toDateString(),
+                    'target_time' => $now->format('H:i'),
+                    'status' => 'pending',
+                    'notes' => "Post Langsung dari Campaign '{$project->name}' (" . $now->format('d/m/Y H:i') . " WIB)",
+                ]);
+
+                try {
+                    (new PublishScheduleJob($schedule))->handle($metaService);
+                } catch (\Throwable $e) {
+                    $schedule->update([
+                        'status' => 'failed',
+                        'notes' => 'Gagal terbit langsung: ' . $e->getMessage(),
+                        'executed_at' => Carbon::now(),
+                    ]);
+                }
+
+                if ($project->repeat_type === 'continuous' || $project->repeat_type === 'until_date') {
+                    $this->syncProjectSchedules($project);
+                }
+
+                $schedule->refresh();
+                $schedule->load(['publishLogs.connectedAccount']);
+
+                $isSuccess = in_array($schedule->status, ['completed', 'partially_failed']);
+                $msg = match($schedule->status) {
+                    'completed' => "Project '{$project->name}' berhasil diperbarui dan langsung diterbitkan ke platform sosial!",
+                    'partially_failed' => "Project '{$project->name}' berhasil diperbarui, namun beberapa target gagal diterbitkan langsung.",
+                    default => "Project '{$project->name}' diperbarui, namun penerbitan langsung gagal: " . ($schedule->notes ?? 'Terjadi kesalahan sistem'),
+                };
+
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'success' => $isSuccess,
+                        'direct_published' => true,
+                        'schedule_status' => $schedule->status,
+                        'message' => $msg,
+                        'redirect' => route('projects.show', $project->id),
+                        'logs' => $schedule->publishLogs,
+                    ]);
+                }
+
+                return redirect()->route('projects.show', $project->id)->with($isSuccess ? 'success' : 'error', $msg);
             }
 
             // Sinkronkan jadwal otomatis (sesuaikan batas tanggal, hari libur, jam tayang, & buffer)

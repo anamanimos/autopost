@@ -27,9 +27,10 @@ class PublishScheduleJob implements ShouldQueue
         $this->forceAll = $forceAll;
     }
 
-    public function handle(MetaGraphService $metaService, ?ThreadsService $threadsService = null): void
+    public function handle(MetaGraphService $metaService, ?ThreadsService $threadsService = null, ?\App\Services\TikTokService $tikTokService = null): void
     {
         $threadsService = $threadsService ?? app(ThreadsService::class);
+        $tikTokService = $tikTokService ?? app(\App\Services\TikTokService::class);
         $schedule = $this->schedule->fresh(['projectCampaign.targets.connectedAccount', 'mediaFile']);
         if (!$schedule || $schedule->status === 'completed') {
             return;
@@ -140,6 +141,21 @@ class PublishScheduleJob implements ShouldQueue
                         'content_type' => $contentType,
                         'action_status' => 'skipped',
                         'error_message' => 'Akun dinonaktifkan / tidak ditemukan di Meta (Soft-Deactivation)',
+                        'executed_at' => Carbon::now(),
+                    ]);
+                    $skippedActions++;
+                }
+
+                if ($target->targetsTikTok()) {
+                    PublishLog::firstOrCreate([
+                        'schedule_id' => $schedule->id,
+                        'project_campaign_id' => $project->id,
+                        'connected_account_id' => $account->id,
+                        'platform' => 'tiktok',
+                    ], [
+                        'content_type' => $contentType,
+                        'action_status' => 'skipped',
+                        'error_message' => 'Akun dinonaktifkan / tidak ditemukan di TikTok (Soft-Deactivation)',
                         'executed_at' => Carbon::now(),
                     ]);
                     $skippedActions++;
@@ -522,7 +538,120 @@ class PublishScheduleJob implements ShouldQueue
                     }
                 }
             }
+
+            // 4. Eksekusi TIKTOK (jika target mencakup TikTok)
+            if ($target->targetsTikTok()) {
+                if ($target->platform_target === 'all' && !$account->hasTikTok()) {
+                    // Akun belum menghubungkan TikTok, abaikan secara aman untuk target 'all'
+                } else {
+                    $totalActions++;
+
+                $existingTikTokSuccess = PublishLog::where('schedule_id', $schedule->id)
+                    ->where('connected_account_id', $account->id)
+                    ->where('platform', 'tiktok')
+                    ->where('action_status', 'success')
+                    ->first();
+
+                $existingTikTokFailed = PublishLog::where('schedule_id', $schedule->id)
+                    ->where('connected_account_id', $account->id)
+                    ->where('platform', 'tiktok')
+                    ->where('action_status', 'failed')
+                    ->first();
+
+                if ($existingTikTokSuccess && !$this->forceAll) {
+                    $successActions++;
+                } else {
+                    if (!$account->hasTikTok()) {
+                        $logPayload = [
+                            'schedule_id' => $schedule->id,
+                            'project_campaign_id' => $project->id,
+                            'connected_account_id' => $account->id,
+                            'platform' => 'tiktok',
+                            'content_type' => $contentType,
+                            'action_status' => 'failed',
+                            'error_message' => 'Akun ini belum terhubung ke TikTok API.',
+                            'executed_at' => Carbon::now(),
+                        ];
+                        if ($existingTikTokFailed) {
+                            $existingTikTokFailed->update($logPayload);
+                        } else {
+                            PublishLog::create($logPayload);
+                        }
+                        $failedActions++;
+                    } elseif (!$hasMedia) {
+                        $logPayload = [
+                            'schedule_id' => $schedule->id,
+                            'project_campaign_id' => $project->id,
+                            'connected_account_id' => $account->id,
+                            'platform' => 'tiktok',
+                            'content_type' => $contentType,
+                            'action_status' => 'failed',
+                            'error_message' => 'TikTok mewajibkan aset video atau foto. Postingan teks murni tidak didukung.',
+                            'executed_at' => Carbon::now(),
+                        ];
+                        if ($existingTikTokFailed) {
+                            $existingTikTokFailed->update($logPayload);
+                        } else {
+                            PublishLog::create($logPayload);
+                        }
+                        $failedActions++;
+                    } else {
+                        $tiktokRes = $tikTokService->publishTikTokPost(
+                            $account,
+                            $mediaUrls,
+                            $caption,
+                            $isVideo
+                        );
+
+                        if ($tiktokRes['success']) {
+                            $logPayload = [
+                                'schedule_id' => $schedule->id,
+                                'project_campaign_id' => $project->id,
+                                'connected_account_id' => $account->id,
+                                'platform' => 'tiktok',
+                                'content_type' => $contentType,
+                                'action_status' => 'success',
+                                'media_id' => $tiktokRes['id'] ?? ($tiktokRes['publish_id'] ?? null),
+                                'response_payload' => $tiktokRes['data'] ?? [],
+                                'error_message' => null,
+                                'error_code' => null,
+                                'error_subcode' => null,
+                                'executed_at' => Carbon::now(),
+                            ];
+                            if ($existingTikTokFailed) {
+                                $existingTikTokFailed->update($logPayload);
+                            } else {
+                                PublishLog::create($logPayload);
+                            }
+                            $successActions++;
+
+                            $account->increment('tiktok_publishing_quota_usage');
+                        } else {
+                            $err = $tiktokRes['error'] ?? [];
+                            $logPayload = [
+                                'schedule_id' => $schedule->id,
+                                'project_campaign_id' => $project->id,
+                                'connected_account_id' => $account->id,
+                                'platform' => 'tiktok',
+                                'content_type' => $contentType,
+                                'action_status' => 'failed',
+                                'error_message' => $err['message'] ?? 'Gagal mempublish ke TikTok',
+                                'error_code' => $err['code'] ?? null,
+                                'response_payload' => $err,
+                                'executed_at' => Carbon::now(),
+                            ];
+                            if ($existingTikTokFailed) {
+                                $existingTikTokFailed->update($logPayload);
+                            } else {
+                                PublishLog::create($logPayload);
+                            }
+                            $failedActions++;
+                        }
+                    }
+                }
+            }
         }
+    }
 
         // Tentukan Final Status Jadwal
         $finalStatus = 'completed';

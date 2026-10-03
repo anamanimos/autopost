@@ -325,13 +325,36 @@
                                                 <span class="text-slate-300 dark:text-gray-600">•</span>
                                                 <i class="fa-brands fa-threads text-slate-700 dark:text-slate-300"></i><span>&#64;{{ $acc->threads_username }}</span>
                                             @endif
+                                            @if($acc->hasTikTok())
+                                                <span class="text-slate-300 dark:text-gray-600">•</span>
+                                                <i class="fa-brands fa-tiktok text-slate-800 dark:text-gray-200"></i><span>&#64;{{ $acc->tiktok_username }}</span>
+                                            @endif
                                         </span>
                                     </div>
                                 </label>
 
                                 <div id="platformControl_{{ $acc->id }}" class="{{ $isTargeted ? '' : 'hidden' }} shrink-0">
                                     <select name="platform_targets[{{ $acc->id }}]" class="bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-2 py-1 text-[11px] text-slate-800 dark:text-gray-200 focus:outline-none focus:border-indigo-500 transition">
-                                        @if($acc->hasThreads())
+                                        @php
+                                            $hasTh = $acc->hasThreads();
+                                            $hasTk = $acc->hasTikTok();
+                                        @endphp
+                                        @if($hasTh && $hasTk)
+                                            <option value="all" {{ $platformTarget === 'all' ? 'selected' : '' }}>Semua (FB, IG, Threads & TikTok)</option>
+                                            <option value="both" {{ $platformTarget === 'both' ? 'selected' : '' }}>FB & IG</option>
+                                            <option value="tiktok_only" {{ $platformTarget === 'tiktok_only' ? 'selected' : '' }}>TikTok Saja</option>
+                                            <option value="threads_only" {{ $platformTarget === 'threads_only' ? 'selected' : '' }}>Threads Saja</option>
+                                            <option value="ig_threads" {{ $platformTarget === 'ig_threads' ? 'selected' : '' }}>IG & Threads</option>
+                                            <option value="fb_threads" {{ $platformTarget === 'fb_threads' ? 'selected' : '' }}>FB & Threads</option>
+                                            <option value="instagram_only" {{ $platformTarget === 'instagram_only' ? 'selected' : '' }}>Instagram Saja</option>
+                                            <option value="facebook_only" {{ $platformTarget === 'facebook_only' ? 'selected' : '' }}>FB Page Saja</option>
+                                        @elseif($hasTk)
+                                            <option value="all" {{ $platformTarget === 'all' ? 'selected' : '' }}>Semua (FB, IG & TikTok)</option>
+                                            <option value="both" {{ $platformTarget === 'both' ? 'selected' : '' }}>FB & IG</option>
+                                            <option value="tiktok_only" {{ $platformTarget === 'tiktok_only' ? 'selected' : '' }}>TikTok Saja</option>
+                                            <option value="instagram_only" {{ $platformTarget === 'instagram_only' ? 'selected' : '' }}>Instagram Saja</option>
+                                            <option value="facebook_only" {{ $platformTarget === 'facebook_only' ? 'selected' : '' }}>FB Page Saja</option>
+                                        @elseif($hasTh)
                                             <option value="all" {{ $platformTarget === 'all' ? 'selected' : '' }}>Semua (FB, IG & Threads)</option>
                                             <option value="both" {{ $platformTarget === 'both' ? 'selected' : '' }}>FB & IG</option>
                                             <option value="threads_only" {{ $platformTarget === 'threads_only' ? 'selected' : '' }}>Threads Saja</option>

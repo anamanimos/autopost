@@ -150,7 +150,7 @@ class ProjectController extends Controller
                 'existing_media_ids.*' => 'integer|exists:media_files,id',
                 'targets' => 'required|array|min:1',
                 'targets.*.account_id' => 'required|exists:connected_accounts,id',
-                'targets.*.platform_target' => 'required|in:all,both,threads_only,instagram_only,facebook_only,ig_threads,fb_threads',
+                'targets.*.platform_target' => 'required|in:all,both,threads_only,instagram_only,facebook_only,ig_threads,fb_threads,tiktok_only',
             ]);
 
             $existingMediaIds = array_map('intval', $request->input('existing_media_ids', []));
@@ -158,19 +158,30 @@ class ProjectController extends Controller
             $hasMedia = !empty($existingMediaIds) || !empty($newFiles);
             $caption = trim($request->input('caption', ''));
 
-            // Periksa apakah ada target yang membutuhkan media (Instagram)
-            $targetsRequireMedia = false;
+            // Periksa apakah ada target yang membutuhkan media (Instagram atau TikTok)
+            $targetsInstagram = false;
+            $targetsTikTok = false;
             foreach ($request->input('targets', []) as $targetData) {
                 $platform = $targetData['platform_target'] ?? 'both';
                 if (in_array($platform, ['all', 'both', 'instagram_only', 'ig_threads'])) {
-                    $targetsRequireMedia = true;
-                    break;
+                    $targetsInstagram = true;
+                }
+                if ($platform === 'tiktok_only' || str_contains($platform, 'tiktok')) {
+                    $targetsTikTok = true;
                 }
             }
 
             if (!$hasMedia) {
-                if ($targetsRequireMedia) {
+                if ($targetsInstagram) {
                     $msg = 'Target akun mencakup Instagram yang mewajibkan file media (gambar/video). Silakan pilih atau unggah minimal 1 media.';
+                    if ($request->ajax() || $request->wantsJson()) {
+                        return response()->json(['success' => false, 'message' => $msg], 422);
+                    }
+                    return redirect()->back()->with('error', $msg);
+                }
+
+                if ($targetsTikTok) {
+                    $msg = 'Target akun mencakup TikTok yang mewajibkan file media (video/gambar). Silakan pilih atau unggah minimal 1 media.';
                     if ($request->ajax() || $request->wantsJson()) {
                         return response()->json(['success' => false, 'message' => $msg], 422);
                     }
@@ -343,7 +354,7 @@ class ProjectController extends Controller
                 'media_files.*' => 'file|mimes:jpg,jpeg,png,mp4,mov|max:50000',
                 'targets' => 'required|array|min:1',
                 'targets.*.account_id' => 'required|exists:connected_accounts,id',
-                'targets.*.platform_target' => 'required|in:all,both,threads_only,instagram_only,facebook_only,ig_threads,fb_threads',
+                'targets.*.platform_target' => 'required|in:all,both,threads_only,instagram_only,facebook_only,ig_threads,fb_threads,tiktok_only',
             ]);
 
             // Validasi Aturan 1x Post
@@ -398,17 +409,28 @@ class ProjectController extends Controller
                 }
 
                 if (empty($allMediaIds)) {
-                    $targetsRequireMedia = false;
+                    $targetsInstagram = false;
+                    $targetsTikTok = false;
                     foreach ($request->input('targets', []) as $targetData) {
                         $platform = $targetData['platform_target'] ?? 'both';
                         if (in_array($platform, ['all', 'both', 'instagram_only', 'ig_threads'])) {
-                            $targetsRequireMedia = true;
-                            break;
+                            $targetsInstagram = true;
+                        }
+                        if ($platform === 'tiktok_only' || str_contains($platform, 'tiktok')) {
+                            $targetsTikTok = true;
                         }
                     }
 
-                    if ($targetsRequireMedia) {
+                    if ($targetsInstagram) {
                         $msg = 'Target akun mencakup Instagram yang mewajibkan file media (gambar/video). Silakan pilih atau unggah minimal 1 media.';
+                        if ($request->ajax() || $request->wantsJson()) {
+                            return response()->json(['success' => false, 'message' => $msg], 422);
+                        }
+                        return redirect()->back()->with('error', $msg);
+                    }
+
+                    if ($targetsTikTok) {
+                        $msg = 'Target akun mencakup TikTok yang mewajibkan file media (video/gambar). Silakan pilih atau unggah minimal 1 media.';
                         if ($request->ajax() || $request->wantsJson()) {
                             return response()->json(['success' => false, 'message' => $msg], 422);
                         }

@@ -6,8 +6,10 @@
 @php
     $hasToken = !empty($credential->user_access_token) || !empty($credential->system_user_token);
     $isMetaConnected = $credential->token_status === 'valid' && $hasToken;
+    $isTikTokConfigured = $tiktokCredential && $tiktokCredential->isConfigured();
+    $tiktokAccountsCount = $accounts->filter(fn($a) => $a->hasTikTok())->count();
     $initialTab = request('tab', 'storage');
-    if (!in_array($initialTab, ['storage', 'meta'])) {
+    if (!in_array($initialTab, ['storage', 'meta', 'tiktok'])) {
         $initialTab = 'storage';
     }
 @endphp
@@ -37,7 +39,7 @@
                 <span>Pengaturan Sistem</span>
             </h1>
             <p class="text-xs text-slate-500 dark:text-gray-400 mt-1">
-                Kelola konfigurasi Cloudflare R2 Object Storage, Integrasi Meta Graph API (Instagram & Facebook), dan parameter server.
+                Kelola konfigurasi Cloudflare R2 Object Storage, Integrasi Meta Graph API, dan Integrasi TikTok Content Posting API.
             </p>
         </div>
 
@@ -50,7 +52,7 @@
         </div>
     </div>
 
-    <!-- Tab Navigasi Utama: Storage vs Meta Integration -->
+    <!-- Tab Navigasi Utama: Storage vs Meta Integration vs TikTok -->
     <div class="flex items-center space-x-2 border-b border-slate-200 dark:border-gray-800 pb-0.5 text-xs sm:text-sm font-semibold overflow-x-auto whitespace-nowrap scrollbar-none">
         <!-- Tab 1: Storage R2 -->
         <button type="button" 
@@ -78,6 +80,30 @@
             @if($isMetaConnected)
                 <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300">
                     {{ $accounts->count() }} Akun Aktif
+                </span>
+            @else
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300">
+                    Setup Diperlukan
+                </span>
+            @endif
+        </button>
+
+        <!-- Tab 3: TikTok Integration -->
+        <button type="button" 
+                @click="activeTab = 'tiktok'; updateUrlTab('tiktok')"
+                :class="activeTab === 'tiktok' 
+                    ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-500 bg-indigo-50/60 dark:bg-indigo-950/20' 
+                    : 'text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-gray-200 hover:bg-slate-100/60 dark:hover:bg-gray-800/40'"
+                class="px-4 py-3 rounded-t-xl transition flex items-center space-x-2.5">
+            <i class="fa-brands fa-tiktok text-base text-slate-900 dark:text-white"></i>
+            <span>Integrasi TikTok API</span>
+            @if($tiktokAccountsCount > 0)
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300">
+                    {{ $tiktokAccountsCount }} Akun Terhubung
+                </span>
+            @elseif($isTikTokConfigured)
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950/80 dark:text-blue-300">
+                    App Siap
                 </span>
             @else
                 <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300">
@@ -1000,6 +1026,354 @@
 
     </div> <!-- Tutup TAB 2: META INTEGRATION (activeTab === 'meta') -->
 
+    <!-- ========================================================================= -->
+    <!-- TAB 3: TIKTOK INTEGRATION (TIKTOK CONTENT POSTING API V2)                 -->
+    <!-- ========================================================================= -->
+    <div x-show="activeTab === 'tiktok'" x-transition class="space-y-6">
+
+        <!-- Header Ringkas Status TikTok API -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+            <div>
+                <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+                    <i class="fa-brands fa-tiktok text-slate-900 dark:text-white"></i>
+                    <span>Integrasi TikTok Content Posting API</span>
+                </h2>
+                <p class="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
+                    Otomasi publikasi video dan foto ke profil TikTok Creator & Business melalui TikTok Open API resmi.
+                </p>
+            </div>
+
+            <div class="flex items-center space-x-2">
+                @if($isTikTokConfigured)
+                    <a href="{{ route('tiktok.oauth') }}" 
+                       class="px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-900 hover:bg-black text-white dark:bg-white dark:hover:bg-slate-200 dark:text-slate-900 transition flex items-center space-x-1.5 shadow-sm min-h-[44px]">
+                        <i class="fa-brands fa-tiktok text-sm"></i>
+                        <span>Hubungkan Akun (OAuth)</span>
+                    </a>
+                @endif
+                <button type="button" 
+                        onclick="openManualTikTokModal()" 
+                        class="px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 dark:border-gray-700 transition flex items-center space-x-1.5 shadow-sm min-h-[44px]">
+                    <i class="fa-solid fa-key text-xs text-amber-500"></i>
+                    <span>Input Token Manual</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Status Banner Utama -->
+        @if($tiktokAccountsCount > 0)
+            <div class="bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800/80 rounded-xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex items-start space-x-3.5">
+                    <div class="w-10 h-10 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-700 dark:bg-emerald-500/20 dark:border-emerald-500/30 dark:text-emerald-400 flex items-center justify-center text-lg flex-shrink-0 mt-0.5">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h3 class="text-sm font-bold text-emerald-950 dark:text-white">TikTok API Terhubung dan Aktif</h3>
+                            <span class="px-2 py-0.5 text-[9px] font-extrabold uppercase rounded-md bg-emerald-200/90 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">Aktif</span>
+                        </div>
+                        <p class="text-xs text-emerald-900 dark:text-gray-300 mt-0.5">
+                            {{ $tiktokAccountsCount }} akun TikTok telah ditautkan dan siap menerima jadwal publikasi otomatis.
+                        </p>
+                        <p class="text-[11px] text-emerald-800 dark:text-gray-400 mt-1">
+                            Sistem secara otomatis memperbarui Access Token TikTok sebelum kedaluwarsa via endpoint refresh token.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-2.5 sm:self-center">
+                    <a href="{{ route('tiktok.oauth') }}" 
+                       class="px-4 py-2 bg-slate-900 hover:bg-black text-white dark:bg-white dark:hover:bg-slate-200 dark:text-slate-900 text-xs font-semibold rounded-lg shadow transition flex items-center space-x-1.5 min-h-[44px]">
+                        <i class="fa-solid fa-plus text-xs"></i>
+                        <span>Tambah Akun TikTok</span>
+                    </a>
+                </div>
+            </div>
+        @elseif($isTikTokConfigured)
+            <div class="bg-blue-50/90 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/80 rounded-xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex items-start space-x-3.5">
+                    <div class="w-10 h-10 rounded-lg bg-blue-100 border border-blue-300 text-blue-700 dark:bg-blue-500/20 dark:border-blue-500/30 dark:text-blue-400 flex items-center justify-center text-lg flex-shrink-0 mt-0.5">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-blue-950 dark:text-white">Kredensial Developer App Siap</h3>
+                        <p class="text-xs text-blue-900 dark:text-gray-300 mt-0.5">
+                            Client Key dan Client Secret TikTok telah disimpan. Silakan klik tombol di samping untuk mengotorisasi akun TikTok Anda.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-2.5">
+                    <a href="{{ route('tiktok.oauth') }}" 
+                       class="px-4 py-2 bg-slate-900 hover:bg-black text-white dark:bg-white dark:hover:bg-slate-200 dark:text-slate-900 text-xs font-semibold rounded-lg shadow transition flex items-center space-x-1.5 min-h-[44px]">
+                        <i class="fa-brands fa-tiktok text-sm"></i>
+                        <span>Hubungkan Akun Sekarang</span>
+                    </a>
+                </div>
+            </div>
+        @else
+            <div class="bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 rounded-xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex items-start space-x-3.5">
+                    <div class="w-10 h-10 rounded-lg bg-amber-100 border border-amber-300 text-amber-700 dark:bg-amber-500/20 dark:border-amber-500/30 dark:text-amber-400 flex items-center justify-center text-lg flex-shrink-0 mt-0.5">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-amber-950 dark:text-white">Konfigurasi TikTok App Diperlukan</h3>
+                        <p class="text-xs text-amber-900 dark:text-gray-300 mt-0.5">
+                            Masukkan <strong>Client Key</strong> dan <strong>Client Secret</strong> dari aplikasi Anda di TikTok for Developers untuk mengaktifkan login OAuth 1-Klik.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        <!-- Grid 2 Kolom: Kredensial App & Daftar Akun Terhubung -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- Kolom Kiri: Form Kredensial & Info Callback (lg:col-span-5) -->
+            <div class="lg:col-span-5 space-y-6">
+
+                <!-- Form Kredensial App -->
+                <div class="card-dark rounded-xl p-5 border border-slate-200 dark:border-gray-800 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-100 dark:border-gray-800 pb-3">
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid fa-key text-indigo-500 text-sm"></i>
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-gray-200">Kredensial TikTok App</h3>
+                        </div>
+                        <span class="text-[10px] font-mono px-2 py-0.5 rounded {{ $isTikTokConfigured ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-gray-800 dark:text-gray-400' }}">
+                            {{ $isTikTokConfigured ? 'Terkonfigurasi' : 'Belum Diatur' }}
+                        </span>
+                    </div>
+
+                    <form action="{{ route('tiktok.updateCredentials') }}" method="POST" class="space-y-4 text-xs">
+                        @csrf
+                        <div>
+                            <label class="block font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider text-[10px] mb-1">
+                                Client Key (App ID TikTok) <span class="text-rose-500">*</span>
+                            </label>
+                            <input type="text" name="client_key" required
+                                   value="{{ old('client_key', $tiktokCredential?->client_key) }}"
+                                   placeholder="Contoh: aw12345678abcdef"
+                                   class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono">
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider text-[10px] mb-1">
+                                Client Secret <span class="text-rose-500">*</span>
+                            </label>
+                            <input type="password" name="client_secret"
+                                   placeholder="{{ $tiktokCredential?->hasSecret() ? '•••••••••••••••• (Tersimpan aman)' : 'Masukkan Client Secret TikTok' }}"
+                                   class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono">
+                            <span class="text-[10px] text-slate-400 dark:text-gray-500 mt-1 block">Kosongkan jika tidak ingin mengubah Secret yang tersimpan.</span>
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider text-[10px] mb-1">
+                                Catatan / Keterangan (Opsional)
+                            </label>
+                            <input type="text" name="notes"
+                                   value="{{ old('notes', $tiktokCredential?->notes) }}"
+                                   placeholder="Contoh: Production App SosmedAuto"
+                                   class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+
+                        <div class="pt-2 flex items-center justify-end">
+                            <button type="submit" 
+                                    class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs transition shadow flex items-center space-x-1.5 min-h-[44px]">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                                <span>Simpan Kredensial App</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Box Callback URL & Panduan Portal TikTok -->
+                <div class="card-dark rounded-xl p-5 border border-slate-200 dark:border-gray-800 shadow-sm space-y-3 text-xs">
+                    <div class="flex items-center space-x-2 text-slate-800 dark:text-gray-200 font-bold uppercase tracking-wider text-[10px]">
+                        <i class="fa-solid fa-link text-indigo-500"></i>
+                        <span>Redirect URI (OAuth Callback)</span>
+                    </div>
+
+                    <p class="text-[11px] text-slate-600 dark:text-gray-400 leading-relaxed">
+                        Salin URL ini ke dashboard TikTok for Developers (<em>Manage Apps &gt; Content Posting API / Login Kit &gt; Redirect Domains / Callback URLs</em>):
+                    </p>
+
+                    <div class="flex items-center space-x-2">
+                        <input type="text" id="inputTikTokCallbackUrl" value="{{ $tiktokCallbackUrl }}" readonly
+                               class="w-full bg-slate-100 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-[11px] font-mono text-slate-800 dark:text-gray-200 select-all focus:outline-none">
+                        <button type="button" onclick="copyTikTokCallbackUrl()" 
+                                class="px-3 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 font-semibold text-xs shrink-0 transition flex items-center space-x-1 min-h-[44px]">
+                            <i class="fa-regular fa-copy"></i>
+                            <span id="copyTikTokBtnText">Salin</span>
+                        </button>
+                    </div>
+
+                    <div class="p-3 bg-slate-50 dark:bg-gray-900/60 rounded-lg border border-slate-200 dark:border-gray-800 space-y-1.5 text-[11px] text-slate-600 dark:text-gray-400">
+                        <strong class="font-bold text-slate-800 dark:text-gray-200 block">Scope API yang Dibutuhkan:</strong>
+                        <ul class="list-disc list-inside space-y-0.5 font-mono text-[10px]">
+                            <li>user.info.basic (identitas akun)</li>
+                            <li>video.upload (unggah video)</li>
+                            <li>video.publish (publikasi video ke TikTok)</li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Kolom Kanan: Daftar Akun TikTok Terhubung (lg:col-span-7) -->
+            <div class="lg:col-span-7 space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-200 dark:border-gray-800 pb-2.5">
+                    <div>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-gray-200 flex items-center space-x-2">
+                            <i class="fa-brands fa-tiktok text-slate-900 dark:text-white"></i>
+                            <span>Daftar Akun TikTok Terhubung ({{ $tiktokAccountsCount }})</span>
+                        </h3>
+                        <span class="text-[10px] text-slate-500 dark:text-gray-400">Akun yang memiliki token TikTok aktif untuk publikasi konten</span>
+                    </div>
+
+                    <button type="button" onclick="openManualTikTokModal()" class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline">
+                        + Tautkan Token
+                    </button>
+                </div>
+
+                @php
+                    $tiktokAccounts = $accounts->filter(fn($a) => $a->hasTikTok());
+                @endphp
+
+                @if($tiktokAccounts->isEmpty())
+                    <div class="p-8 text-center card-dark rounded-xl border border-slate-200 dark:border-gray-800 space-y-3">
+                        <div class="w-12 h-12 rounded-xl bg-slate-100 dark:bg-gray-800 text-slate-400 flex items-center justify-center mx-auto text-xl">
+                            <i class="fa-brands fa-tiktok"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-800 dark:text-gray-200">Belum Ada Akun TikTok Terhubung</h4>
+                            <p class="text-[11px] text-slate-500 dark:text-gray-400 mt-1 max-w-sm mx-auto">
+                                Hubungkan akun TikTok Anda untuk mulai menjadwalkan dan menerbitkan video atau foto secara otomatis.
+                            </p>
+                        </div>
+                        <div class="pt-2 flex flex-wrap items-center justify-center gap-2">
+                            @if($isTikTokConfigured)
+                                <a href="{{ route('tiktok.oauth') }}" 
+                                   class="px-4 py-2 bg-slate-900 hover:bg-black text-white dark:bg-white dark:hover:bg-slate-200 dark:text-slate-900 text-xs font-semibold rounded-lg shadow transition min-h-[44px] inline-flex items-center space-x-1.5">
+                                    <i class="fa-brands fa-tiktok"></i>
+                                    <span>Hubungkan via OAuth</span>
+                                </a>
+                            @endif
+                            <button type="button" onclick="openManualTikTokModal()" 
+                                    class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 text-xs font-semibold rounded-lg border border-slate-300 dark:border-gray-700 transition min-h-[44px] inline-flex items-center space-x-1.5">
+                                <i class="fa-solid fa-key text-amber-500"></i>
+                                <span>Input Token Manual</span>
+                            </button>
+                        </div>
+                    </div>
+                @else
+                    <div class="space-y-3">
+                        @foreach($tiktokAccounts as $tAccount)
+                            <div class="card-dark rounded-xl p-4 border border-slate-200 dark:border-gray-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div class="flex items-start space-x-3.5">
+                                    @if($tAccount->tiktok_avatar_url)
+                                        <img src="{{ $tAccount->tiktok_avatar_url }}" alt="{{ $tAccount->tiktok_username }}" class="w-11 h-11 rounded-lg object-cover border border-slate-200 dark:border-gray-700 shrink-0 mt-0.5">
+                                    @else
+                                        <div class="w-11 h-11 rounded-lg bg-slate-900 text-white flex items-center justify-center text-lg shrink-0 mt-0.5">
+                                            <i class="fa-brands fa-tiktok"></i>
+                                        </div>
+                                    @endif
+                                    <div class="min-w-0">
+                                        <div class="flex items-center space-x-2">
+                                            <h4 class="font-bold text-xs text-slate-900 dark:text-white truncate">
+                                                {{ $tAccount->tiktok_display_name ?: $tAccount->page_name }}
+                                            </h4>
+                                            <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                                                Terhubung
+                                            </span>
+                                        </div>
+
+                                        <p class="text-[11px] text-slate-600 dark:text-gray-400 font-mono mt-0.5 flex items-center space-x-2">
+                                            <span>&#64;{{ $tAccount->tiktok_username ?: 'akun_tiktok' }}</span>
+                                            @if($tAccount->page_name && $tAccount->page_name !== $tAccount->tiktok_display_name)
+                                                <span class="text-slate-400 dark:text-gray-500 font-sans">({{ $tAccount->page_name }})</span>
+                                            @endif
+                                        </p>
+
+                                        <div class="pt-1.5 flex flex-wrap items-center gap-3 text-[10px] text-slate-500 dark:text-gray-400">
+                                            <span>OpenID: <strong class="font-mono text-slate-700 dark:text-gray-300">{{ Str::limit($tAccount->tiktok_open_id, 16) }}</strong></span>
+                                            <span>Token: <strong class="text-emerald-600 dark:text-emerald-400 font-semibold">{{ $tAccount->tiktok_token_expires_at ? $tAccount->tiktok_token_expires_at->diffForHumans() : 'Aktif' }}</strong></span>
+                                            @if($tAccount->tiktok_refresh_token_expires_at)
+                                                <span>Refresh: <strong class="text-slate-700 dark:text-gray-300">{{ $tAccount->tiktok_refresh_token_expires_at->diffForHumans() }}</strong></span>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center space-x-2 shrink-0 sm:self-center">
+                                    <button type="button" 
+                                            onclick="disconnectTikTok({{ $tAccount->id }}, '{{ $tAccount->tiktok_username ?: $tAccount->page_name }}')"
+                                            class="px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-xs font-semibold transition min-h-[44px] flex items-center space-x-1"
+                                            title="Putuskan koneksi TikTok dari akun ini">
+                                        <i class="fa-solid fa-unlink text-[10px]"></i>
+                                        <span>Putuskan</span>
+                                    </button>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
+                <!-- Daftar Akun Meta Lain yang Belum Memiliki TikTok -->
+                @php
+                    $accountsWithoutTikTok = $accounts->filter(fn($a) => !$a->hasTikTok());
+                @endphp
+                @if($accountsWithoutTikTok->isNotEmpty())
+                    <div class="card-dark rounded-xl p-4 border border-slate-200 dark:border-gray-800 shadow-sm space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-100 dark:border-gray-800 pb-2">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-gray-300">
+                                Tautkan TikTok ke Akun Facebook / Instagram
+                            </h4>
+                            <span class="text-[10px] text-slate-400 dark:text-gray-500">{{ $accountsWithoutTikTok->count() }} akun</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 dark:text-gray-400">
+                            Pilih akun yang sudah terdaftar di bawah untuk menautkan profil TikTok agar jadwal dapat dipublikasikan lintas platform sekaligus:
+                        </p>
+                        <div class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                            @foreach($accountsWithoutTikTok as $aNonTk)
+                                <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-gray-900/40 border border-slate-200 dark:border-gray-800 text-xs">
+                                    <div class="min-w-0">
+                                        <span class="font-semibold text-slate-900 dark:text-white block truncate">{{ $aNonTk->page_name }}</span>
+                                        <span class="text-[10px] text-slate-400 dark:text-gray-500 flex items-center space-x-2">
+                                            @if($aNonTk->ig_username)
+                                                <span>IG: &#64;{{ $aNonTk->ig_username }}</span>
+                                            @endif
+                                            @if($aNonTk->hasThreads())
+                                                <span>Threads: &#64;{{ $aNonTk->threads_username }}</span>
+                                            @endif
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center space-x-1.5 shrink-0">
+                                        @if($isTikTokConfigured)
+                                            <a href="{{ route('tiktok.oauth', ['account_id' => $aNonTk->id]) }}" 
+                                               class="px-2.5 py-1 rounded bg-slate-900 hover:bg-black text-white dark:bg-white dark:hover:bg-slate-200 dark:text-slate-900 font-semibold text-[11px] transition shadow-sm flex items-center space-x-1">
+                                                <i class="fa-brands fa-tiktok text-[10px]"></i>
+                                                <span>OAuth</span>
+                                            </a>
+                                        @endif
+                                        <button type="button" 
+                                                onclick="openManualTikTokModal({{ $aNonTk->id }}, '{{ addslashes($aNonTk->page_name) }}')"
+                                                class="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 font-semibold text-[11px] border border-slate-300 dark:border-gray-700 transition">
+                                            Manual
+                                        </button>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
+            </div>
+
+        </div>
+
+    </div> <!-- Tutup TAB 3: TIKTOK INTEGRATION (activeTab === 'tiktok') -->
+
     <!-- Modal Input Token Threads Manual -->
     <div id="manualThreadsModal" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="card-dark rounded-xl max-w-lg w-full border border-slate-200 dark:border-gray-800 p-6 space-y-4 shadow-2xl">
@@ -1052,6 +1426,83 @@
                     <button type="submit" id="btnSubmitThreadsToken" class="px-5 py-2 bg-slate-900 hover:bg-black text-white dark:bg-indigo-600 dark:hover:bg-indigo-500 font-semibold rounded-lg text-xs transition shadow flex items-center space-x-1.5 min-h-[44px]">
                         <i class="fa-solid fa-floppy-disk"></i>
                         <span>Simpan & Tautkan Threads</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Input Token TikTok Manual -->
+    <div id="manualTikTokModal" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="card-dark rounded-xl max-w-lg w-full border border-slate-200 dark:border-gray-800 p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-gray-800 pb-3">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+                    <i class="fa-brands fa-tiktok text-base"></i>
+                    <span>Input Token TikTok Manual</span>
+                </h3>
+                <button type="button" onclick="closeManualTikTokModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-base">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form id="formManualTikTok" action="{{ route('tiktok.connectManual') }}" method="POST" class="space-y-4 text-xs">
+                @csrf
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider text-[10px] mb-1">
+                        Tautkan ke Akun Terdaftar
+                    </label>
+                    <select name="account_id" id="tiktokTargetAccountId" class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500">
+                        <option value="">-- Buat Akun TikTok Baru (Standalone) --</option>
+                        @foreach($accounts as $acc)
+                            <option value="{{ $acc->id }}">{{ $acc->page_name }} ({{ $acc->ig_username ? '@'.$acc->ig_username : 'Facebook Page' }})</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider text-[10px] mb-1">
+                        TikTok Open ID (Opsional jika profil diambil otomatis)
+                    </label>
+                    <input type="text" name="open_id" id="inputTikTokOpenId" placeholder="Contoh: _000abcdef12345678"
+                           class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono">
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider text-[10px] mb-1">
+                        TikTok Username (Opsional)
+                    </label>
+                    <input type="text" name="username" id="inputTikTokUsername" placeholder="Contoh: namakreator"
+                           class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider text-[10px] mb-1">
+                        Access Token TikTok <span class="text-rose-500">*</span>
+                    </label>
+                    <textarea name="access_token" id="inputTikTokAccessToken" required rows="3" placeholder="Tempelkan TikTok Access Token (act.example...)"
+                              class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono break-all"></textarea>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wider text-[10px] mb-1">
+                        Refresh Token TikTok (Direkomendasikan agar token otomatis diperpanjang)
+                    </label>
+                    <textarea name="refresh_token" id="inputTikTokRefreshToken" rows="2" placeholder="Tempelkan TikTok Refresh Token (rft.example...)"
+                              class="w-full bg-slate-50 dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono break-all"></textarea>
+                </div>
+
+                <div class="p-3 bg-slate-50 dark:bg-gray-900/90 rounded-lg border border-slate-200 dark:border-gray-800 text-[11px] text-slate-600 dark:text-gray-400 space-y-1">
+                    <span class="font-semibold text-slate-800 dark:text-gray-200 block">Catatan Token TikTok:</span>
+                    <p>Access Token TikTok standar berlaku selama 24 jam. Jika Anda menyertakan Refresh Token, sistem akan otomatis memperbarui token saat publikasi tanpa perlu input ulang manual.</p>
+                </div>
+
+                <div class="pt-3 border-t border-slate-200 dark:border-gray-800 flex items-center justify-end space-x-2">
+                    <button type="button" onclick="closeManualTikTokModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 rounded-lg text-xs font-semibold transition min-h-[44px]">
+                        Batal
+                    </button>
+                    <button type="submit" id="btnSubmitTikTokToken" class="px-5 py-2 bg-slate-900 hover:bg-black text-white dark:bg-indigo-600 dark:hover:bg-indigo-500 font-semibold rounded-lg text-xs transition shadow flex items-center space-x-1.5 min-h-[44px]">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Simpan & Tautkan TikTok</span>
                     </button>
                 </div>
             </form>
@@ -1468,6 +1919,73 @@
             if (result.isConfirmed) {
                 showLoading('Memutuskan...', 'Menghapus kredensial Threads...');
                 fetch(`/threads/${id}/disconnect`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert('success', 'Diputuskan', data.message);
+                        setTimeout(() => window.location.reload(), 1200);
+                    } else {
+                        showAlert('error', 'Gagal', data.message);
+                    }
+                })
+                .catch(err => {
+                    showAlert('error', 'Error', err.message);
+                });
+            }
+        });
+    }
+
+    // =========================================================================
+    // TIKTOK API SCRIPTS
+    // =========================================================================
+    function copyTikTokCallbackUrl() {
+        const input = document.getElementById('inputTikTokCallbackUrl');
+        input.select();
+        navigator.clipboard.writeText(input.value);
+        document.getElementById('copyTikTokBtnText').textContent = 'Tersalin!';
+        setTimeout(() => document.getElementById('copyTikTokBtnText').textContent = 'Salin', 2000);
+    }
+
+    function openManualTikTokModal(accountId = '', pageName = '') {
+        const select = document.getElementById('tiktokTargetAccountId');
+        if (select && accountId) {
+            select.value = accountId;
+        } else if (select) {
+            select.value = '';
+        }
+        document.getElementById('manualTikTokModal').classList.remove('hidden');
+    }
+
+    function closeManualTikTokModal() {
+        document.getElementById('manualTikTokModal').classList.add('hidden');
+        document.getElementById('formManualTikTok').reset();
+    }
+
+    function disconnectTikTok(id, username) {
+        Swal.fire({
+            title: `Putuskan TikTok @${username}?`,
+            text: 'Token TikTok akan dihapus dan akun tidak lagi menerima postingan TikTok otomatis.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e11d48',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Ya, Putuskan',
+            cancelButtonText: 'Batal',
+            customClass: {
+                popup: 'swal2-popup-dark',
+                title: 'swal2-title-dark',
+                htmlContainer: 'swal2-html-dark'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                showLoading('Memutuskan...', 'Menghapus kredensial TikTok...');
+                fetch(`/tiktok/${id}/disconnect`, {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,

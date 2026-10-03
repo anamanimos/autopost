@@ -43,10 +43,10 @@
                     </div>
                     <div>
                         <h3 id="direct-post-modal-title" class="text-base font-bold text-slate-900 dark:text-white">
-                            Post Langsung ke Meta
+                            Post Langsung ke Meta & TikTok
                         </h3>
                         <p class="text-xs text-slate-500 dark:text-gray-400">
-                            Terbitkan konten secara instan ke Instagram dan Facebook Page tanpa penjadwalan.
+                            Terbitkan konten secara instan ke Instagram, Facebook Page, Threads, dan TikTok tanpa penjadwalan.
                         </p>
                     </div>
                 </div>
@@ -76,16 +76,17 @@
                     @if($modalAccounts->isEmpty())
                         <div class="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 text-xs">
                             <i class="fa-solid fa-triangle-exclamation mr-1"></i>
-                            Belum ada akun Meta terhubung. Silakan hubungkan akun terlebih dahulu di halaman <a href="{{ route('settings.index', ['tab' => 'meta']) }}" class="underline font-semibold">Pengaturan Meta</a>.
+                            Belum ada akun sosial media yang terhubung. Silakan hubungkan akun terlebih dahulu di menu <a href="{{ route('settings.index') }}" class="underline font-semibold">Pengaturan</a>.
                         </div>
                     @else
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-48 overflow-y-auto pr-1">
                             @foreach($modalAccounts as $acc)
                                 @php
                                     $hasIg = !empty($acc->ig_user_id) || !empty($acc->instagram_business_id);
-                                    $hasFb = !empty($acc->page_id) || !empty($acc->facebook_page_id);
+                                    $hasFb = !empty($acc->page_id) && !str_starts_with($acc->page_id, 'tiktok_');
                                     $hasThreads = $acc->hasThreads();
-                                    $defaultPlatform = $hasThreads ? 'all' : 'both';
+                                    $hasTikTok = $acc->hasTikTok();
+                                    $defaultPlatform = ($hasThreads || $hasTikTok) ? 'all' : 'both';
                                 @endphp
                                 <div class="p-3 rounded-lg border transition-all text-xs flex flex-col justify-between gap-2"
                                      :class="isAccountSelected({{ $acc->id }}) ? 'bg-indigo-50/50 dark:bg-indigo-950/30 border-indigo-500 ring-1 ring-indigo-500/50' : 'bg-slate-50/60 dark:bg-gray-800/40 border-slate-200 dark:border-gray-700 hover:border-slate-300 dark:hover:border-gray-600'">
@@ -98,7 +99,7 @@
                                                class="mt-0.5 rounded border-slate-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500">
                                         <div class="min-w-0 flex-1">
                                             <div class="font-semibold text-slate-800 dark:text-gray-100 truncate text-xs">{{ $acc->page_name }}</div>
-                                            <div class="flex items-center gap-2 mt-0.5 text-[10px]">
+                                            <div class="flex items-center gap-2 mt-0.5 text-[10px] flex-wrap">
                                                 @if($hasIg)
                                                     <span class="inline-flex items-center text-pink-600 dark:text-pink-400 font-medium">
                                                         <i class="fa-brands fa-instagram mr-1"></i> IG
@@ -114,7 +115,12 @@
                                                         <i class="fa-brands fa-threads mr-1"></i> Threads
                                                     </span>
                                                 @endif
-                                                @if(!$hasIg && !$hasFb && !$hasThreads)
+                                                @if($hasTikTok)
+                                                    <span class="inline-flex items-center text-slate-900 dark:text-white font-medium">
+                                                        <i class="fa-brands fa-tiktok mr-1"></i> TikTok
+                                                    </span>
+                                                @endif
+                                                @if(!$hasIg && !$hasFb && !$hasThreads && !$hasTikTok)
                                                     <span class="text-slate-400 italic">Belum terhubung</span>
                                                 @endif
                                             </div>
@@ -127,7 +133,22 @@
                                             <span class="text-slate-500 dark:text-gray-400">Target:</span>
                                             <select @change="updatePlatformTarget({{ $acc->id }}, $event.target.value)" 
                                                     class="py-1 px-2 text-[11px] rounded bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-600 text-slate-700 dark:text-gray-200 focus:outline-none focus:border-indigo-500">
-                                                @if($hasThreads)
+                                                @if($hasThreads && $hasTikTok)
+                                                    <option value="all">Semua (FB, IG, Threads & TikTok)</option>
+                                                    <option value="both">Facebook & Instagram</option>
+                                                    <option value="tiktok_only">TikTok Saja</option>
+                                                    <option value="threads_only">Threads Saja</option>
+                                                    <option value="ig_threads">Instagram & Threads</option>
+                                                    <option value="fb_threads">Facebook & Threads</option>
+                                                    @if($hasIg) <option value="instagram_only">Instagram Saja</option> @endif
+                                                    @if($hasFb) <option value="facebook_only">Facebook Saja</option> @endif
+                                                @elseif($hasTikTok)
+                                                    <option value="all">Semua (FB, IG & TikTok)</option>
+                                                    <option value="both">Facebook & Instagram</option>
+                                                    <option value="tiktok_only">TikTok Saja</option>
+                                                    @if($hasIg) <option value="instagram_only">Instagram Saja</option> @endif
+                                                    @if($hasFb) <option value="facebook_only">Facebook Saja</option> @endif
+                                                @elseif($hasThreads)
                                                     <option value="all">Semua (FB, IG & Threads)</option>
                                                     <option value="both">Facebook & Instagram</option>
                                                     <option value="threads_only">Threads Saja</option>
@@ -535,7 +556,7 @@
 
                 let targetsRequireMedia = false;
                 for (const [accId, platform] of Object.entries(this.selectedTargets)) {
-                    if (['all', 'both', 'instagram_only', 'ig_threads'].includes(platform)) {
+                    if (['all', 'both', 'instagram_only', 'ig_threads', 'tiktok_only'].includes(platform) || platform.includes('tiktok')) {
                         targetsRequireMedia = true;
                         break;
                     }
@@ -543,7 +564,7 @@
 
                 if (!hasMedia) {
                     if (targetsRequireMedia) {
-                        this.errorMessage = 'Target akun mencakup Instagram yang mewajibkan file media (foto/video). Silakan pilih media atau ubah target ke Threads Saja / FB Page Saja.';
+                        this.errorMessage = 'Target akun mencakup Instagram atau TikTok yang mewajibkan file media (foto/video). Silakan pilih media atau ubah target ke Threads Saja / FB Page Saja.';
                         return;
                     }
 

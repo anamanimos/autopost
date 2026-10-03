@@ -24,6 +24,16 @@ class ConnectedAccount extends Model
         'threads_token_expires_at',
         'threads_publishing_quota_usage',
         'threads_publishing_quota_total',
+        'tiktok_open_id',
+        'tiktok_username',
+        'tiktok_display_name',
+        'tiktok_avatar_url',
+        'tiktok_access_token',
+        'tiktok_refresh_token',
+        'tiktok_token_expires_at',
+        'tiktok_refresh_token_expires_at',
+        'tiktok_publishing_quota_usage',
+        'tiktok_publishing_quota_total',
         'is_active',
         'ig_publishing_quota_usage',
         'ig_publishing_quota_total',
@@ -34,12 +44,18 @@ class ConnectedAccount extends Model
     protected $casts = [
         'page_access_token' => 'encrypted',
         'threads_access_token' => 'encrypted',
+        'tiktok_access_token' => 'encrypted',
+        'tiktok_refresh_token' => 'encrypted',
         'is_active' => 'boolean',
         'ig_publishing_quota_usage' => 'integer',
         'ig_publishing_quota_total' => 'integer',
         'threads_publishing_quota_usage' => 'integer',
         'threads_publishing_quota_total' => 'integer',
+        'tiktok_publishing_quota_usage' => 'integer',
+        'tiktok_publishing_quota_total' => 'integer',
         'threads_token_expires_at' => 'datetime',
+        'tiktok_token_expires_at' => 'datetime',
+        'tiktok_refresh_token_expires_at' => 'datetime',
         'last_synced_at' => 'datetime',
         'last_verified_at' => 'datetime',
     ];
@@ -71,6 +87,11 @@ class ConnectedAccount extends Model
         return !empty($this->threads_user_id) && !empty($this->threads_access_token);
     }
 
+    public function hasTikTok(): bool
+    {
+        return !empty($this->tiktok_open_id) && !empty($this->tiktok_access_token);
+    }
+
     public function getDisplayNameAttribute(): string
     {
         $parts = [];
@@ -79,6 +100,9 @@ class ConnectedAccount extends Model
         }
         if ($this->threads_username && $this->threads_username !== $this->ig_username) {
              $parts[] = "Threads: @{$this->threads_username}";
+        }
+        if ($this->tiktok_username) {
+             $parts[] = "TikTok: @{$this->tiktok_username}";
         }
         if (!empty($parts)) {
             return "{$this->page_name} (" . implode(', ', $parts) . ")";

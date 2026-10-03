@@ -65,10 +65,12 @@ class SettingController extends Controller
 
         // Integrasi Meta API Data
         $credential = MetaCredential::getActive();
+        $tiktokCredential = \App\Models\TikTokCredential::getActive();
         $accounts = ConnectedAccount::orderBy('page_name')->get();
         $logs = TokenActivityLog::latest()->take(20)->get();
         $callbackUrl = route('meta.callback');
         $threadsCallbackUrl = route('threads.callback');
+        $tiktokCallbackUrl = route('tiktok.callback');
 
         return view('settings.index', compact(
             'totalFiles',
@@ -83,10 +85,12 @@ class SettingController extends Controller
             'r2Config',
             'systemInfo',
             'credential',
+            'tiktokCredential',
             'accounts',
             'logs',
             'callbackUrl',
-            'threadsCallbackUrl'
+            'threadsCallbackUrl',
+            'tiktokCallbackUrl'
         ));
     }
 

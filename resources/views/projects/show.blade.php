@@ -130,24 +130,47 @@
                 <div class="bg-slate-100/90 dark:bg-gray-900/90 p-3.5 rounded-lg border {{ ($acc && !$acc->is_active) ? 'border-rose-300 dark:border-rose-800/80 text-rose-700 dark:text-rose-300' : 'border-slate-200 dark:border-gray-800' }} flex items-center justify-between">
                     <div class="flex items-center space-x-3">
                         <div class="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm flex-shrink-0">
-                            <i class="fa-brands fa-facebook-f"></i>
+                            @if($acc && $acc->hasTikTok() && (!$acc->page_id || str_starts_with($acc->page_id, 'tiktok_')))
+                                <i class="fa-brands fa-tiktok text-slate-900 dark:text-white"></i>
+                            @else
+                                <i class="fa-brands fa-facebook-f"></i>
+                            @endif
                         </div>
                         <div>
                             <span class="font-bold text-slate-900 dark:text-white text-xs block leading-tight">{{ $acc ? $acc->page_name : 'Unknown' }}</span>
-                            <span class="text-[11px] text-slate-500 dark:text-gray-400">
+                            <span class="text-[11px] text-slate-500 dark:text-gray-400 flex flex-wrap items-center gap-1.5 mt-0.5">
                                 @if($acc && $acc->ig_username)
-                                    <i class="fa-brands fa-instagram text-pink-500 dark:text-pink-400 ml-0.5 mr-1"></i>&#64;{{ $acc->ig_username }}
-                                @else
-                                    <span class="text-slate-400 dark:text-gray-500 italic">Tanpa IG</span>
+                                    <span><i class="fa-brands fa-instagram text-pink-500 mr-0.5"></i>&#64;{{ $acc->ig_username }}</span>
+                                @endif
+                                @if($acc && $acc->hasThreads())
+                                    <span><i class="fa-brands fa-threads text-slate-700 dark:text-slate-300 mr-0.5"></i>&#64;{{ $acc->threads_username }}</span>
+                                @endif
+                                @if($acc && $acc->hasTikTok())
+                                    <span><i class="fa-brands fa-tiktok text-slate-800 dark:text-gray-200 mr-0.5"></i>&#64;{{ $acc->tiktok_username }}</span>
+                                @endif
+                                @if(!$acc || (!$acc->ig_username && !$acc->hasThreads() && !$acc->hasTikTok()))
+                                    <span class="text-slate-400 dark:text-gray-500 italic">Facebook Page</span>
                                 @endif
                             </span>
                         </div>
                     </div>
 
                     <div>
-                        @if($target->platform_target === 'both')
+                        @if($target->platform_target === 'all')
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300">
+                                Semua Platform
+                            </span>
+                        @elseif($target->platform_target === 'both')
                             <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-indigo-50 dark:bg-indigo-950 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300">
                                 Both (FB + IG)
+                            </span>
+                        @elseif($target->platform_target === 'tiktok_only')
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-900 text-white dark:bg-white dark:text-slate-900 border border-slate-700 dark:border-gray-300">
+                                TikTok Saja
+                            </span>
+                        @elseif($target->platform_target === 'threads_only')
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-100 dark:bg-gray-800 border border-slate-300 dark:border-gray-700 text-slate-800 dark:text-gray-200">
+                                Threads Saja
                             </span>
                         @elseif($target->platform_target === 'instagram_only')
                             <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-pink-50 dark:bg-pink-950 border border-pink-200 dark:border-pink-800 text-pink-700 dark:text-pink-300">
@@ -156,6 +179,10 @@
                         @elseif($target->platform_target === 'facebook_only')
                             <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">
                                 Facebook Saja
+                            </span>
+                        @else
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-100 dark:bg-gray-800 border border-slate-300 dark:border-gray-700 text-slate-700 dark:text-gray-300">
+                                {{ strtoupper($target->platform_target) }}
                             </span>
                         @endif
                     </div>
@@ -517,6 +544,11 @@
                                             <i class="fa-brands fa-threads"></i>
                                             <span>Threads</span>
                                         </span>
+                                    @elseif($log->platform === 'tiktok')
+                                        <span class="inline-flex items-center space-x-1 text-slate-900 dark:text-white font-sans font-semibold">
+                                            <i class="fa-brands fa-tiktok"></i>
+                                            <span>TikTok</span>
+                                        </span>
                                     @else
                                         <span class="inline-flex items-center space-x-1 text-blue-600 dark:text-blue-400 font-sans font-semibold">
                                             <i class="fa-brands fa-facebook"></i>
@@ -584,6 +616,11 @@
                                     <span class="inline-flex items-center space-x-1 text-slate-800 dark:text-gray-200 text-xs font-semibold">
                                         <i class="fa-brands fa-threads text-xs"></i>
                                         <span>TH</span>
+                                    </span>
+                                @elseif($log->platform === 'tiktok')
+                                    <span class="inline-flex items-center space-x-1 text-slate-900 dark:text-white text-xs font-semibold">
+                                        <i class="fa-brands fa-tiktok text-xs"></i>
+                                        <span>TK</span>
                                     </span>
                                 @else
                                     <span class="inline-flex items-center space-x-1 text-blue-600 dark:text-blue-400 text-xs font-semibold">

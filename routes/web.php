@@ -75,6 +75,15 @@ Route::middleware('auth')->group(function () {
         Route::post('/{id}/test-connection', [\App\Http\Controllers\ThreadsIntegrationController::class, 'testConnection'])->name('testConnection');
     });
 
+    // Integrasi TikTok Open API v2
+    Route::prefix('tiktok')->name('tiktok.')->group(function () {
+        Route::get('/oauth', [\App\Http\Controllers\TikTokIntegrationController::class, 'redirectToOAuth'])->name('oauth');
+        Route::get('/callback', [\App\Http\Controllers\TikTokIntegrationController::class, 'handleOAuthCallback'])->name('callback');
+        Route::post('/credentials', [\App\Http\Controllers\TikTokIntegrationController::class, 'updateCredentials'])->name('updateCredentials');
+        Route::post('/manual-connect', [\App\Http\Controllers\TikTokIntegrationController::class, 'connectManual'])->name('connectManual');
+        Route::post('/{id}/disconnect', [\App\Http\Controllers\TikTokIntegrationController::class, 'disconnect'])->name('disconnect');
+    });
+
     // Administrator Only Routes: User Management
     Route::middleware('admin')->group(function () {
         Route::resource('users', UserController::class);

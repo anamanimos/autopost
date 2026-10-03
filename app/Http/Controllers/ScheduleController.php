@@ -119,7 +119,7 @@ class ScheduleController extends Controller
         ]);
     }
 
-    public function runSingle(Request $request, $id, MetaGraphService $metaService, ?\App\Services\ThreadsService $threadsService = null)
+    public function runSingle(Request $request, $id, MetaGraphService $metaService, ?\App\Services\ThreadsService $threadsService = null, ?\App\Services\TikTokService $tikTokService = null)
     {
         try {
             $schedule = Schedule::findOrFail($id);
@@ -135,7 +135,11 @@ class ScheduleController extends Controller
                 ]);
             }
 
-            (new PublishScheduleJob($schedule, $forceAll))->handle($metaService, $threadsService ?? app(\App\Services\ThreadsService::class));
+            (new PublishScheduleJob($schedule, $forceAll))->handle(
+                $metaService,
+                $threadsService ?? app(\App\Services\ThreadsService::class),
+                $tikTokService ?? app(\App\Services\TikTokService::class)
+            );
 
             $schedule->refresh();
             $schedule->load('publishLogs.connectedAccount');
@@ -425,7 +429,7 @@ class ScheduleController extends Controller
             'existing_media_id' => 'nullable|integer|exists:media_files,id',
             'targets' => 'required|array|min:1',
             'targets.*.account_id' => 'required|exists:connected_accounts,id',
-            'targets.*.platform_target' => 'required|in:all,both,threads_only,instagram_only,facebook_only,ig_threads,fb_threads',
+            'targets.*.platform_target' => 'required|in:all,both,threads_only,instagram_only,facebook_only,ig_threads,fb_threads,tiktok_only',
         ]);
 
         $hasMedia = $request->hasFile('media_file') || $request->filled('existing_media_id');
@@ -434,7 +438,7 @@ class ScheduleController extends Controller
         $targetsRequireMedia = false;
         foreach ($request->input('targets', []) as $targetData) {
             $platform = $targetData['platform_target'] ?? 'both';
-            if (in_array($platform, ['all', 'both', 'instagram_only', 'ig_threads'])) {
+            if (in_array($platform, ['all', 'both', 'instagram_only', 'ig_threads', 'tiktok_only']) || str_contains($platform, 'tiktok')) {
                 $targetsRequireMedia = true;
                 break;
             }
@@ -444,7 +448,7 @@ class ScheduleController extends Controller
             if ($targetsRequireMedia) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Target akun mencakup Instagram yang mewajibkan file media (gambar/video). Silakan pilih atau unggah media.',
+                    'message' => 'Target akun mencakup Instagram atau TikTok yang mewajibkan file media (gambar/video). Silakan pilih atau unggah media.',
                 ], 422);
             }
 
@@ -518,7 +522,7 @@ class ScheduleController extends Controller
         ]);
 
         try {
-            (new PublishScheduleJob($schedule))->handle($metaService, $threadsService);
+            (new PublishScheduleJob($schedule))->handle($metaService, $threadsService, app(\App\Services\TikTokService::class));
         } catch (\Throwable $e) {
             $schedule->update([
                 'status' => 'failed',
@@ -533,7 +537,7 @@ class ScheduleController extends Controller
         $isSuccess = in_array($schedule->status, ['completed', 'partially_failed']);
 
         $message = match($schedule->status) {
-            'completed' => 'Konten berhasil diterbitkan ke Meta (Facebook, Instagram & Threads)!',
+            'completed' => 'Konten berhasil diterbitkan ke platform sosial (Facebook, Instagram, Threads & TikTok)!',
             'partially_failed' => 'Konten diterbitkan sebagian. Periksa catatan log.',
             default => 'Penerbitan gagal diproses. Periksa catatan log detail.',
         };

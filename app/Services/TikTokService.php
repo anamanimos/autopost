@@ -79,10 +79,18 @@ class TikTokService
                 ];
             }
 
-            $errCode = is_string($json['error'] ?? null) ? $json['error'] : ($json['error']['code'] ?? null);
-            $errDesc = $json['error_description'] 
-                ?? $json['error']['message'] 
-                ?? $json['message'] 
+            $rawBody = $response->body();
+            $status = $response->status();
+            $data = is_array($json) ? $json : [];
+
+            $errCode = is_string($data['error'] ?? null) 
+                ? $data['error'] 
+                : ($data['error']['code'] ?? $data['error_code'] ?? $data['code'] ?? null);
+
+            $errDesc = $data['error_description'] 
+                ?? $data['error']['message'] 
+                ?? $data['description']
+                ?? $data['message'] 
                 ?? null;
 
             if ($errDesc && $errCode && $errCode !== $errDesc) {
@@ -91,11 +99,20 @@ class TikTokService
                 $errMsg = "Gagal otorisasi TikTok: {$errDesc}";
             } elseif ($errCode) {
                 $errMsg = "Gagal otorisasi TikTok [{$errCode}].";
+            } elseif ($rawBody) {
+                $errMsg = "Gagal menukar kode otorisasi TikTok (HTTP {$status}): " . \Illuminate\Support\Str::limit($rawBody, 200);
             } else {
-                $errMsg = 'Gagal menukar kode otorisasi TikTok. Periksa kecocokan Client Key, Client Secret, dan Redirect URI.';
+                $errMsg = "Gagal menukar kode otorisasi TikTok (HTTP {$status}): Respons kosong dari TikTok.";
             }
 
-            Log::warning('TikTok token exchange failed', ['response' => $json, 'status' => $response->status()]);
+            Log::warning('TikTok token exchange failed', [
+                'status' => $status,
+                'response_body' => $rawBody,
+                'json' => $json,
+                'client_key' => $this->clientKey,
+                'redirect_uri' => $redirectUri,
+            ]);
+
             return [
                 'success' => false,
                 'error' => [

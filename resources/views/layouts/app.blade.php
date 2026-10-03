@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Meta Content Scheduler') - Graph API</title>
+    <title>@yield('title', 'Damaijaya Auto') - Multi-Platform Scheduler</title>
     
     <!-- Favicon & App Icons -->
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}?v=1">
@@ -520,7 +520,7 @@
                         <!-- Meta API Connection Status Indicator -->
                         <a href="{{ route('settings.index', ['tab' => 'meta']) }}" 
                            class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg border border-slate-200/90 dark:border-gray-800 bg-white/80 dark:bg-slate-800/60 hover:border-indigo-400 dark:hover:border-indigo-500/60 transition shadow-sm group"
-                           title="Integrasi Meta Graph API — Status: Terhubung (Klik untuk Pengaturan)">
+                           title="Integrasi Meta Graph API: Status Terhubung (Klik untuk Pengaturan)">
                             <span class="relative flex h-2 w-2">
                                 <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                 <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -649,7 +649,14 @@
 
         <!-- Global Footer (Desktop visible, extra spacing on mobile) -->
         <footer class="glass-nav border-t py-4 text-center text-xs text-slate-500 dark:text-slate-400 hidden lg:block">
-            <p>&copy; {{ date('Y') }} Meta Content Scheduler — Official Meta Graph API (Instagram & Facebook Page)</p>
+            <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+                <p>&copy; {{ date('Y') }} Damaijaya Auto &bull; Multi-Platform Social Media Scheduler</p>
+                <div class="flex items-center space-x-4">
+                    <a href="{{ route('terms') }}" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition">Terms of Service</a>
+                    <span>&bull;</span>
+                    <a href="{{ route('privacy') }}" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition">Privacy Policy</a>
+                </div>
+            </div>
         </footer>
 
         <!-- Mobile Bottom Navigation Bar (Fixed at bottom for mobile screens < lg) -->
@@ -725,21 +732,33 @@
     <!-- Guest Layout (Login Page) -->
     <div class="flex-1 flex flex-col min-h-screen">
         <header class="glass-nav sticky top-0 z-30 py-3.5 px-4 sm:px-6 flex items-center justify-between">
+            <a href="{{ url('/') }}" class="flex items-center space-x-3 group">
+                <img src="{{ asset('favicon.png') }}" alt="Damaijaya Auto Logo" class="w-8 h-8 rounded-xl object-cover shadow-md shadow-indigo-500/25 group-hover:scale-105 transition">
+                <span class="font-bold text-sm text-slate-900 dark:text-white">Damaijaya Auto</span>
+            </a>
             <div class="flex items-center space-x-3">
-                <img src="{{ asset('favicon.png') }}" alt="Meta Scheduler Logo" class="w-8 h-8 rounded-xl object-cover shadow-md shadow-indigo-500/25">
-                <span class="font-bold text-sm text-slate-900 dark:text-white">Meta Content Scheduler</span>
+                <a href="{{ route('login') }}" class="text-xs font-semibold text-slate-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition">
+                    Masuk
+                </a>
+                <button onclick="toggleTheme()" id="themeToggleBtn" 
+                        class="w-8 h-8 rounded-lg flex items-center justify-center transition border shadow-sm cursor-pointer bg-white/80 hover:bg-white text-slate-700 border-slate-300/80 dark:bg-slate-800/60 dark:hover:bg-slate-800 dark:text-amber-300 dark:border-white/10"
+                        title="Beralih Mode Gelap / Terang">
+                    <i id="themeToggleIcon" class="fa-solid fa-moon text-xs"></i>
+                </button>
             </div>
-            <button onclick="toggleTheme()" id="themeToggleBtn" 
-                    class="w-8 h-8 rounded-lg flex items-center justify-center transition border shadow-sm cursor-pointer bg-white/80 hover:bg-white text-slate-700 border-slate-300/80 dark:bg-slate-800/60 dark:hover:bg-slate-800 dark:text-amber-300 dark:border-white/10"
-                    title="Beralih Mode Gelap / Terang">
-                <i id="themeToggleIcon" class="fa-solid fa-moon text-xs"></i>
-            </button>
         </header>
-        <main class="flex-grow flex items-center justify-center p-4">
+        <main class="flex-grow flex justify-center p-4 sm:p-6 lg:p-8">
             @yield('content')
         </main>
         <footer class="glass-nav border-t py-4 text-center text-xs text-slate-500 dark:text-slate-400">
-            <p>&copy; {{ date('Y') }} Meta Content Scheduler — Official Meta Graph API</p>
+            <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+                <p>&copy; {{ date('Y') }} Damaijaya Auto &bull; Multi-Platform Social Media Scheduler</p>
+                <div class="flex items-center space-x-4">
+                    <a href="{{ route('terms') }}" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition">Terms of Service</a>
+                    <span>&bull;</span>
+                    <a href="{{ route('privacy') }}" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition">Privacy Policy</a>
+                </div>
+            </div>
         </footer>
     </div>
     @endauth
@@ -906,8 +925,10 @@
         </div>
     </div>
 
-    <!-- Direct Post Modal Component -->
-    @include('components.direct-post-modal')
+    <!-- Direct Post Modal Component (Authenticated Users Only) -->
+    @auth
+        @include('components.direct-post-modal')
+    @endauth
 
     <!-- Global SweetAlert, Theme & Lightbox Scripts -->
     <script>

@@ -9,6 +9,21 @@ use App\Http\Controllers\SSOController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
+// Public Legal Pages (Terms of Service & Privacy Policy for TikTok, Meta, etc.)
+Route::get('/terms', function () {
+    return view('legal.terms');
+})->name('terms');
+Route::get('/terms-of-service', function () {
+    return redirect()->route('terms');
+});
+
+Route::get('/privacy', function () {
+    return view('legal.privacy');
+})->name('privacy');
+Route::get('/privacy-policy', function () {
+    return redirect()->route('privacy');
+});
+
 // Authentication & SSO Routes (Guest Only)
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');

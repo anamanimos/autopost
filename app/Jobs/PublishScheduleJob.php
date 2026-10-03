@@ -682,6 +682,20 @@ class PublishScheduleJob implements ShouldQueue
             $totalActions
         );
 
+        if ($failedActions > 0) {
+            $failedLogs = PublishLog::where('schedule_id', $schedule->id)
+                ->where('action_status', 'failed')
+                ->whereNotNull('error_message')
+                ->get();
+            if ($failedLogs->isNotEmpty()) {
+                $errDetails = $failedLogs->map(function ($l) {
+                    $platform = ucfirst($l->platform);
+                    return "{$platform}: {$l->error_message}";
+                })->implode(' | ');
+                $note .= " [Detail: {$errDetails}]";
+            }
+        }
+
         $schedule->update([
             'status' => $finalStatus,
             'notes' => $note,

@@ -319,10 +319,7 @@ class TikTokService
             }
 
             $errMsg = $json['error']['message'] ?? $json['message'] ?? 'Gagal menginisialisasi postingan video TikTok.';
-
-            if ($errCode === 'unaudited_client_can_only_post_to_private_accounts') {
-                $errMsg = "Aplikasi TikTok masih tahap pengujian (Sandbox / Belum Diaudit). TikTok mewajibkan: 1. Akun TikTok target disetel sebagai 'Akun Privat' di aplikasi TikTok HP (Pengaturan & Privasi > Privasi > Akun Privat = Aktif). 2. Postingan otomatis dibatasi ke 'Hanya Anda' (SELF_ONLY) sampai aplikasi disetujui TikTok.";
-            }
+            $errMsg = $this->formatTikTokErrorMessage($errCode, $errMsg, $json);
 
             Log::error('TikTok publishVideoPost Error', ['response' => $json, 'url' => $videoUrl]);
             return [
@@ -400,10 +397,7 @@ class TikTokService
             }
 
             $errMsg = $json['error']['message'] ?? $json['message'] ?? 'Gagal menginisialisasi postingan foto TikTok.';
-
-            if ($errCode === 'unaudited_client_can_only_post_to_private_accounts') {
-                $errMsg = "Aplikasi TikTok masih tahap pengujian (Sandbox / Belum Diaudit). TikTok mewajibkan: 1. Akun TikTok target disetel sebagai 'Akun Privat' di aplikasi TikTok HP (Pengaturan & Privasi > Privasi > Akun Privat = Aktif). 2. Postingan otomatis dibatasi ke 'Hanya Anda' (SELF_ONLY) sampai aplikasi disetujui TikTok.";
-            }
+            $errMsg = $this->formatTikTokErrorMessage($errCode, $errMsg, $json);
 
             Log::error('TikTok publishPhotoPost Error', ['response' => $json]);
             return [
@@ -418,6 +412,63 @@ class TikTokService
             Log::error('TikTok publishPhotoPost Exception: ' . $e->getMessage());
             return ['success' => false, 'error' => ['message' => $e->getMessage()]];
         }
+    }
+
+    /**
+     * Ambil Informasi Creator (Limit durasi, izin privasi, opsi komentar)
+     */
+    public function getCreatorInfo(string $accessToken): array
+    {
+        $url = 'https://open.tiktokapis.com/v2/post/publish/creator_info/query/';
+
+        try {
+            $response = Http::withToken($accessToken)
+                ->withHeaders(['Content-Type' => 'application/json; charset=UTF-8'])
+                ->timeout(20)
+                ->post($url, new \stdClass());
+
+            $json = $response->json();
+
+            if ($response->successful() && isset($json['data'])) {
+                return [
+                    'success' => true,
+                    'data' => $json['data'],
+                    'privacy_level_options' => $json['data']['privacy_level_options'] ?? [],
+                    'max_video_post_duration_sec' => $json['data']['max_video_post_duration_sec'] ?? 0,
+                    'comment_disabled' => $json['data']['comment_disabled'] ?? false,
+                ];
+            }
+
+            Log::warning('TikTok getCreatorInfo Warning', ['response' => $json]);
+            return [
+                'success' => false,
+                'error' => $json['error'] ?? ['message' => 'Gagal mengambil informasi creator TikTok.'],
+            ];
+        } catch (\Throwable $e) {
+            Log::error('TikTok getCreatorInfo Exception: ' . $e->getMessage());
+            return ['success' => false, 'error' => ['message' => $e->getMessage()]];
+        }
+    }
+
+    /**
+     * Terjemahkan dan berikan panduan solutif untuk kode error TikTok
+     */
+    protected function formatTikTokErrorMessage(?string $errCode, string $defaultMsg, array $json = []): string
+    {
+        if (empty($errCode)) {
+            return $defaultMsg;
+        }
+
+        return match ($errCode) {
+            'unaudited_client_can_only_post_to_private_accounts' => "Aplikasi TikTok masih tahap pengujian (Sandbox / Belum Diaudit). TikTok mewajibkan: 1) Akun TikTok target disetel sebagai 'Akun Privat' di aplikasi ponsel (Pengaturan & Privasi > Privasi > Akun Privat = Aktif). 2) Visibilitas postingan dibatasi ke 'Hanya Anda' (SELF_ONLY) hingga aplikasi lolos audit TikTok.",
+            'url_ownership_unverified' => "Domain media belum diverifikasi di TikTok Developer Portal. Buka https://developers.tiktok.com > Aplikasi Anda > URL properties, lalu tambahkan dan verifikasi domain web Anda.",
+            'privacy_level_option_mismatch' => "Tingkat privasi yang dipilih tidak diizinkan untuk akun TikTok ini. Pastikan menggunakan opsi privasi yang diizinkan (misal: SELF_ONLY untuk sandbox).",
+            'scope_not_authorized', 'scope_permission_missed' => "Aplikasi TikTok belum memiliki izin (scope) yang diperlukan. Pastikan scope 'video.publish' dan 'video.upload' telah diaktifkan di TikTok Developer Portal.",
+            'invalid_file_upload' => "Format file media ditolak oleh TikTok. Pastikan foto berformat JPG/JPEG atau WebP (PNG tidak didukung TikTok), dan video berformat MP4/MOV.",
+            'access_token_invalid' => "Token akses TikTok kadaluarsa atau tidak valid. Silakan hubungkan ulang akun TikTok di Pengaturan Akun.",
+            'rate_limit_exceeded' => "Batas frekuensi posting TikTok tercapai. Silakan coba lagi beberapa saat lagi.",
+            default => !empty($json['error']['message']) ? "Gagal dari TikTok [{$errCode}]: " . $json['error']['message'] : $defaultMsg,
+        };
     }
 
     /**
@@ -489,6 +540,26 @@ class TikTokService
             $ext = strtolower(pathinfo(parse_url($primaryUrl, PHP_URL_PATH), PATHINFO_EXTENSION));
             if (in_array($ext, ['mp4', 'mov', 'webm', 'mkv'])) {
                 $isActualVideo = true;
+            }
+        }
+
+        // Cek izin privasi dari creator_info agar privacy_level sesuai dengan akun pengguna
+        $creatorInfo = $this->getCreatorInfo($accessToken);
+        if ($creatorInfo['success'] && !empty($creatorInfo['privacy_level_options'])) {
+            $allowedPrivacy = $creatorInfo['privacy_level_options'];
+            $currentPrivacy = $options['privacy_level'] ?? 'PUBLIC_TO_EVERYONE';
+
+            if (!in_array($currentPrivacy, $allowedPrivacy)) {
+                if (in_array('SELF_ONLY', $allowedPrivacy)) {
+                    $options['privacy_level'] = 'SELF_ONLY';
+                } elseif (in_array('MUTUAL_FOLLOW_FRIENDS', $allowedPrivacy)) {
+                    $options['privacy_level'] = 'MUTUAL_FOLLOW_FRIENDS';
+                } elseif (in_array('FOLLOWER_OF_CREATOR', $allowedPrivacy)) {
+                    $options['privacy_level'] = 'FOLLOWER_OF_CREATOR';
+                } else {
+                    $options['privacy_level'] = $allowedPrivacy[0];
+                }
+                Log::info("Penyesuaian privacy_level TikTok ke '{$options['privacy_level']}' berdasarkan izin creator_info.");
             }
         }
 

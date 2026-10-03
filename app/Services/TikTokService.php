@@ -77,13 +77,30 @@ class TikTokService
                     'scope' => $data['scope'] ?? '',
                     'data' => $data,
                 ];
+            $errCode = is_string($json['error'] ?? null) ? $json['error'] : ($json['error']['code'] ?? null);
+            $errDesc = $json['error_description'] 
+                ?? $json['error']['message'] 
+                ?? $json['message'] 
+                ?? null;
+
+            if ($errDesc && $errCode && $errCode !== $errDesc) {
+                $errMsg = "Gagal otorisasi TikTok [{$errCode}]: {$errDesc}";
+            } elseif ($errDesc) {
+                $errMsg = "Gagal otorisasi TikTok: {$errDesc}";
+            } elseif ($errCode) {
+                $errMsg = "Gagal otorisasi TikTok [{$errCode}].";
+            } else {
+                $errMsg = 'Gagal menukar kode otorisasi TikTok. Periksa kecocokan Client Key, Client Secret, dan Redirect URI.';
             }
 
-            $errMsg = $json['error']['message'] ?? $json['message'] ?? 'Gagal menukar kode otorisasi TikTok.';
-            Log::warning('TikTok token exchange failed', ['response' => $json]);
+            Log::warning('TikTok token exchange failed', ['response' => $json, 'status' => $response->status()]);
             return [
                 'success' => false,
-                'error' => ['message' => $errMsg, 'code' => $json['error']['code'] ?? null],
+                'error' => [
+                    'message' => $errMsg,
+                    'code' => $errCode,
+                    'raw' => $json,
+                ],
             ];
         } catch (\Throwable $e) {
             Log::error('TikTok exchangeCodeForToken Exception: ' . $e->getMessage());
@@ -121,11 +138,24 @@ class TikTokService
                 ];
             }
 
-            $errMsg = $json['error']['message'] ?? $json['message'] ?? 'Gagal memperbarui token TikTok.';
-            Log::warning('TikTok token refresh failed', ['response' => $json]);
+            $errCode = is_string($json['error'] ?? null) ? $json['error'] : ($json['error']['code'] ?? null);
+            $errDesc = $json['error_description'] 
+                ?? $json['error']['message'] 
+                ?? $json['message'] 
+                ?? null;
+
+            if ($errDesc && $errCode && $errCode !== $errDesc) {
+                $errMsg = "Gagal memperbarui token TikTok [{$errCode}]: {$errDesc}";
+            } elseif ($errDesc) {
+                $errMsg = "Gagal memperbarui token TikTok: {$errDesc}";
+            } else {
+                $errMsg = 'Gagal memperbarui token TikTok.';
+            }
+
+            Log::warning('TikTok token refresh failed', ['response' => $json, 'status' => $response->status()]);
             return [
                 'success' => false,
-                'error' => ['message' => $errMsg, 'code' => $json['error']['code'] ?? null],
+                'error' => ['message' => $errMsg, 'code' => $errCode],
             ];
         } catch (\Throwable $e) {
             Log::error('TikTok refreshToken Exception: ' . $e->getMessage());

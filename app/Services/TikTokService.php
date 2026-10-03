@@ -533,6 +533,11 @@ class TikTokService
             ];
         }
 
+        // Pastikan seluruh URL media menggunakan protokol HTTPS (TikTok mewajibkan HTTPS langsung tanpa redirect)
+        $mediaUrls = array_map(function ($url) {
+            return preg_replace('/^http:\/\//i', 'https://', trim($url));
+        }, $mediaUrls);
+
         // Pastikan URL publik dapat dijangkau
         $primaryUrl = $mediaUrls[0];
         $isActualVideo = $isVideo;

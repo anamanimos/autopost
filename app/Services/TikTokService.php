@@ -77,6 +77,8 @@ class TikTokService
                     'scope' => $data['scope'] ?? '',
                     'data' => $data,
                 ];
+            }
+
             $errCode = is_string($json['error'] ?? null) ? $json['error'] : ($json['error']['code'] ?? null);
             $errDesc = $json['error_description'] 
                 ?? $json['error']['message'] 

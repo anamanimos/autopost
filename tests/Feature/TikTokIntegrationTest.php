@@ -462,4 +462,104 @@ class TikTokIntegrationTest extends TestCase
         $this->assertEquals('failed', $log->action_status);
         $this->assertStringContainsString('TikTok mewajibkan aset video atau foto', $log->error_message);
     }
+
+    public function test_tiktok_service_auto_retries_with_self_only_on_unaudited_client_error(): void
+    {
+        $callCount = 0;
+        Http::fake([
+            'https://open.tiktokapis.com/v2/post/publish/video/init/' => function ($request) use (&$callCount) {
+                $callCount++;
+                $data = json_decode($request->body(), true);
+                if ($callCount === 1) {
+                    // Panggilan pertama (PUBLIC_TO_EVERYONE) ditolak TikTok karena app unaudited
+                    return Http::response([
+                        'error' => [
+                            'code' => 'unaudited_client_can_only_post_to_private_accounts',
+                            'message' => 'Please review our integration guidelines',
+                        ],
+                    ], 200);
+                }
+
+                // Panggilan kedua otomatis retry dengan SELF_ONLY
+                $this->assertEquals('SELF_ONLY', $data['post_info']['privacy_level']);
+                return Http::response([
+                    'data' => [
+                        'publish_id' => 'publish_retry_success_123',
+                    ],
+                ], 200);
+            },
+        ]);
+
+        $service = new TikTokService();
+        $result = $service->publishVideoPost('valid_token', 'https://example.com/video.mp4', 'Test Video');
+
+        $this->assertTrue($result['success']);
+        $this->assertEquals('publish_retry_success_123', $result['publish_id']);
+        $this->assertEquals(2, $callCount);
+    }
+
+    public function test_tiktok_service_returns_friendly_message_if_unaudited_still_fails(): void
+    {
+        Http::fake([
+            'https://open.tiktokapis.com/v2/post/publish/video/init/*' => Http::response([
+                'error' => [
+                    'code' => 'unaudited_client_can_only_post_to_private_accounts',
+                    'message' => 'Please review our integration guidelines',
+                ],
+            ], 200),
+        ]);
+
+        $service = new TikTokService();
+        $result = $service->publishVideoPost('valid_token', 'https://example.com/video.mp4', 'Test Video');
+
+        $this->assertFalse($result['success']);
+        $this->assertEquals('unaudited_client_can_only_post_to_private_accounts', $result['error']['code']);
+        $this->assertStringContainsString('Akun Privat', $result['error']['message']);
+        $this->assertStringContainsString('Sandbox / Belum Diaudit', $result['error']['message']);
+    }
+
+    public function test_publish_log_stores_string_error_code(): void
+    {
+        $account = ConnectedAccount::create([
+            'page_id' => 'tiktok_test_errcode',
+            'page_name' => 'Akun TikTok Error Code',
+            'tiktok_open_id' => 'open_id_errcode',
+            'tiktok_username' => 'arema_style',
+            'tiktok_access_token' => 'act.token_valid',
+            'is_active' => true,
+        ]);
+
+        $project = ProjectCampaign::create([
+            'name' => 'Tiktok Jersey Fantasy Biru',
+            'content_type' => 'post',
+            'caption' => 'Jersey keren',
+            'target_time' => '12:00',
+            'repeat_type' => 'once',
+            'start_date' => Carbon::today(),
+            'status' => 'active',
+        ]);
+
+        $schedule = Schedule::create([
+            'project_campaign_id' => $project->id,
+            'item_code' => 'sch_err_001',
+            'target_date' => Carbon::today(),
+            'target_time' => '12:00',
+            'status' => 'pending',
+        ]);
+
+        $log = PublishLog::create([
+            'schedule_id' => $schedule->id,
+            'project_campaign_id' => $project->id,
+            'connected_account_id' => $account->id,
+            'platform' => 'tiktok',
+            'content_type' => 'post',
+            'action_status' => 'failed',
+            'error_message' => 'Akun belum disetel privat',
+            'error_code' => 'unaudited_client_can_only_post_to_private_accounts',
+            'executed_at' => Carbon::now(),
+        ]);
+
+        $this->assertNotNull($log->id);
+        $this->assertEquals('unaudited_client_can_only_post_to_private_accounts', $log->fresh()->error_code);
+    }
 }

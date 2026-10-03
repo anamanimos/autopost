@@ -640,10 +640,23 @@ class PublishScheduleJob implements ShouldQueue
                                 'response_payload' => $err,
                                 'executed_at' => Carbon::now(),
                             ];
-                            if ($existingTikTokFailed) {
-                                $existingTikTokFailed->update($logPayload);
-                            } else {
-                                PublishLog::create($logPayload);
+                            try {
+                                if ($existingTikTokFailed) {
+                                    $existingTikTokFailed->update($logPayload);
+                                } else {
+                                    PublishLog::create($logPayload);
+                                }
+                            } catch (\Throwable $dbEx) {
+                                if (str_contains($dbEx->getMessage(), 'error_code') || str_contains($dbEx->getMessage(), '1366')) {
+                                    $logPayload['error_code'] = null;
+                                    if ($existingTikTokFailed) {
+                                        $existingTikTokFailed->update($logPayload);
+                                    } else {
+                                        PublishLog::create($logPayload);
+                                    }
+                                } else {
+                                    throw $dbEx;
+                                }
                             }
                             $failedActions++;
                         }

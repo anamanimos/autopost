@@ -262,11 +262,12 @@ class TikTokService
     public function publishVideoPost(string $accessToken, string $videoUrl, string $caption = '', array $options = []): array
     {
         $url = 'https://open.tiktokapis.com/v2/post/publish/video/init/';
+        $privacyLevel = $options['privacy_level'] ?? 'PUBLIC_TO_EVERYONE';
 
         $payload = [
             'post_info' => [
                 'title' => mb_substr($caption, 0, 2200),
-                'privacy_level' => $options['privacy_level'] ?? 'PUBLIC_TO_EVERYONE',
+                'privacy_level' => $privacyLevel,
                 'disable_duet' => false,
                 'disable_stitch' => false,
                 'disable_comment' => false,
@@ -298,13 +299,37 @@ class TikTokService
                 ];
             }
 
+            $errCode = is_string($json['error'] ?? null)
+                ? $json['error']
+                : ($json['error']['code'] ?? $json['code'] ?? null);
+
+            // Auto-fallback: Jika aplikasi TikTok developer masih berstatus unaudited / sandbox,
+            // TikTok hanya mengizinkan posting ke akun privat dengan privacy_level = SELF_ONLY.
+            if ($errCode === 'unaudited_client_can_only_post_to_private_accounts' && $privacyLevel !== 'SELF_ONLY') {
+                Log::info('TikTok unaudited client restriction terdeteksi. Mencoba inisialisasi video dengan privacy_level=SELF_ONLY...');
+                $retryOptions = array_merge($options, ['privacy_level' => 'SELF_ONLY']);
+                $retryResult = $this->publishVideoPost($accessToken, $videoUrl, $caption, $retryOptions);
+                if ($retryResult['success']) {
+                    return $retryResult;
+                }
+                $json = $retryResult['error']['response'] ?? $json;
+                $errCode = is_string($json['error'] ?? null)
+                    ? $json['error']
+                    : ($json['error']['code'] ?? $json['code'] ?? $errCode);
+            }
+
             $errMsg = $json['error']['message'] ?? $json['message'] ?? 'Gagal menginisialisasi postingan video TikTok.';
+
+            if ($errCode === 'unaudited_client_can_only_post_to_private_accounts') {
+                $errMsg = "Aplikasi TikTok masih tahap pengujian (Sandbox / Belum Diaudit). TikTok mewajibkan: 1. Akun TikTok target disetel sebagai 'Akun Privat' di aplikasi TikTok HP (Pengaturan & Privasi > Privasi > Akun Privat = Aktif). 2. Postingan otomatis dibatasi ke 'Hanya Anda' (SELF_ONLY) sampai aplikasi disetujui TikTok.";
+            }
+
             Log::error('TikTok publishVideoPost Error', ['response' => $json, 'url' => $videoUrl]);
             return [
                 'success' => false,
                 'error' => [
                     'message' => $errMsg,
-                    'code' => $json['error']['code'] ?? null,
+                    'code' => $errCode,
                     'response' => $json,
                 ],
             ];
@@ -320,12 +345,13 @@ class TikTokService
     public function publishPhotoPost(string $accessToken, array $imageUrls, string $caption = '', array $options = []): array
     {
         $url = 'https://open.tiktokapis.com/v2/post/publish/content/init/';
+        $privacyLevel = $options['privacy_level'] ?? 'PUBLIC_TO_EVERYONE';
 
         $payload = [
             'post_info' => [
                 'title' => mb_substr($caption, 0, 150),
                 'description' => mb_substr($caption, 0, 2200),
-                'privacy_level' => $options['privacy_level'] ?? 'PUBLIC_TO_EVERYONE',
+                'privacy_level' => $privacyLevel,
             ],
             'source_info' => [
                 'source' => 'PULL_FROM_URL',
@@ -354,13 +380,37 @@ class TikTokService
                 ];
             }
 
+            $errCode = is_string($json['error'] ?? null)
+                ? $json['error']
+                : ($json['error']['code'] ?? $json['code'] ?? null);
+
+            // Auto-fallback: Jika aplikasi TikTok developer masih berstatus unaudited / sandbox,
+            // TikTok hanya mengizinkan posting ke akun privat dengan privacy_level = SELF_ONLY.
+            if ($errCode === 'unaudited_client_can_only_post_to_private_accounts' && $privacyLevel !== 'SELF_ONLY') {
+                Log::info('TikTok unaudited client restriction terdeteksi. Mencoba inisialisasi foto dengan privacy_level=SELF_ONLY...');
+                $retryOptions = array_merge($options, ['privacy_level' => 'SELF_ONLY']);
+                $retryResult = $this->publishPhotoPost($accessToken, $imageUrls, $caption, $retryOptions);
+                if ($retryResult['success']) {
+                    return $retryResult;
+                }
+                $json = $retryResult['error']['response'] ?? $json;
+                $errCode = is_string($json['error'] ?? null)
+                    ? $json['error']
+                    : ($json['error']['code'] ?? $json['code'] ?? $errCode);
+            }
+
             $errMsg = $json['error']['message'] ?? $json['message'] ?? 'Gagal menginisialisasi postingan foto TikTok.';
+
+            if ($errCode === 'unaudited_client_can_only_post_to_private_accounts') {
+                $errMsg = "Aplikasi TikTok masih tahap pengujian (Sandbox / Belum Diaudit). TikTok mewajibkan: 1. Akun TikTok target disetel sebagai 'Akun Privat' di aplikasi TikTok HP (Pengaturan & Privasi > Privasi > Akun Privat = Aktif). 2. Postingan otomatis dibatasi ke 'Hanya Anda' (SELF_ONLY) sampai aplikasi disetujui TikTok.";
+            }
+
             Log::error('TikTok publishPhotoPost Error', ['response' => $json]);
             return [
                 'success' => false,
                 'error' => [
                     'message' => $errMsg,
-                    'code' => $json['error']['code'] ?? null,
+                    'code' => $errCode,
                     'response' => $json,
                 ],
             ];
@@ -408,7 +458,7 @@ class TikTokService
     /**
      * Koordinator Utama Publikasi Postingan TikTok
      */
-    public function publishTikTokPost(ConnectedAccount $account, array $mediaUrls, string $caption, bool $isVideo = false): array
+    public function publishTikTokPost(ConnectedAccount $account, array $mediaUrls, string $caption, bool $isVideo = false, array $options = []): array
     {
         if (!$account->hasTikTok()) {
             return [
@@ -443,11 +493,11 @@ class TikTokService
         }
 
         if ($isActualVideo) {
-            return $this->publishVideoPost($accessToken, $primaryUrl, $caption);
+            return $this->publishVideoPost($accessToken, $primaryUrl, $caption, $options);
         }
 
         // Foto / Carousel Mode
-        $res = $this->publishPhotoPost($accessToken, $mediaUrls, $caption);
+        $res = $this->publishPhotoPost($accessToken, $mediaUrls, $caption, $options);
         if (!$res['success']) {
             // Jika direct photo mode belum aktif pada app TikTok, berikan pesan panduan yang jelas
             $msg = $res['error']['message'] ?? '';
